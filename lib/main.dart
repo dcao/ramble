@@ -1,7 +1,13 @@
+import 'dart:async';
+
+import 'package:declarative_animated_list/declarative_animated_list.dart';
 import 'package:flutter/material.dart';
-import 'package:sup/note.dart';
+import 'package:fuzzy/fuzzy.dart';
+import 'package:morpheus/morpheus.dart';
+import 'package:sup/backend/note.dart';
 import 'package:sup/settings.dart';
 import 'package:sup/themes.dart';
+import 'package:sup/note.dart';
 
 import 'circle_tab_indicator.dart';
 
@@ -20,7 +26,6 @@ class Sup extends StatelessWidget {
   }
 }
 
-
 class HomePage extends StatefulWidget {
   HomePage({Key key}) : super(key: key);
 
@@ -35,61 +40,74 @@ class _HomePageState extends State<HomePage> {
     Tab(text: "capture"),
   ];
 
+  final Future<PrefsHelper> helper = PrefsHelper().init();
+
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: myTabs.length,
-      initialIndex: 1,
-      child: Scaffold(
-        appBar: AppBar(
-          // backgroundColor: Colors.white,
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(8.0),
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: EdgeInsets.only(left: 12.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TabBar(
-                        indicator: CircleTabIndicator(
-                            color: Theme.of(context).accentColor, radius: 3),
-                        tabs: myTabs,
-                        isScrollable: true,
-                        labelPadding: EdgeInsets.only(left: 8, right: 8),
-                        labelColor: Colors.black54,
-                        labelStyle: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontFamily: "Axiforma"),
+    return FutureBuilder(
+        future: helper,
+        builder: (BuildContext context, AsyncSnapshot<PrefsHelper> snapshot) {
+          if (snapshot.hasData) {
+            return DefaultTabController(
+              length: myTabs.length,
+              initialIndex: snapshot.data.getDefaultScreenAsInt(),
+              child: Scaffold(
+                appBar: AppBar(
+                  // backgroundColor: Colors.white,
+                  elevation: 0,
+                  backgroundColor: Colors.transparent,
+                  bottom: PreferredSize(
+                    preferredSize: const Size.fromHeight(8.0),
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 12.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TabBar(
+                                indicator: CircleTabIndicator(
+                                    color: Theme.of(context).accentColor,
+                                    radius: 3),
+                                tabs: myTabs,
+                                isScrollable: true,
+                                labelPadding:
+                                    EdgeInsets.only(left: 8, right: 8),
+                                labelColor: Colors.black54,
+                                labelStyle: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontFamily: "Axiforma"),
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.settings, color: Colors.black54),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => SettingsPage()),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(Icons.settings, color: Colors.black54),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => SettingsPage()),
-                        );
-                      },
-                    ),
+                  ),
+                ),
+                body: TabBarView(
+                  children: [
+                    Container(),
+                    NovelPage(helper: snapshot.data),
+                    Container(),
                   ],
                 ),
               ),
-            ),
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            NovelPage(),
-            NovelPage(),
-            NovelPage(),
-          ],
-        ),
-      ),
-    );
+            );
+          } else {
+            return Container();
+          }
+        });
   }
 }
 
@@ -107,8 +125,13 @@ class _CapturePageState extends State<CapturePage> {
   }
 }
 
+// TODO: Implement swipe actions on notes
+// https://stackoverflow.com/questions/46651974/swipe-list-item-for-more-options-flutter
+// https://flutter.dev/docs/cookbook/gestures/dismissible
 class NovelPage extends StatefulWidget {
-  NovelPage({Key key}) : super(key: key);
+  NovelPage({Key key, @required this.helper}) : super(key: key);
+
+  final PrefsHelper helper;
 
   @override
   _NovelPageState createState() => _NovelPageState();
@@ -117,13 +140,51 @@ class NovelPage extends StatefulWidget {
 class _NovelPageState extends State<NovelPage> {
   NoteProvider _db = NoteProvider();
   Future<List<Note>> _notes;
+  Fuzzy<Note> fuse;
+  List<Note> _searchNotes;
   GlobalKey _refreshKey = GlobalKey<RefreshIndicatorState>();
+  final myController = TextEditingController();
+  Timer _debounce;
+
+  final _textFieldKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    _db.open('notes.db');
-    _notes = _db.sync("TODO");
+    _notes = _db.openAndSync(widget.helper.getNotesFolder());
+    myController.addListener(_search);
+  }
+
+  Widget _flightShuttleBuilder(
+    BuildContext flightContext,
+    Animation<double> animation,
+    HeroFlightDirection flightDirection,
+    BuildContext fromHeroContext,
+    BuildContext toHeroContext,
+  ) {
+    return DefaultTextStyle(
+      style: DefaultTextStyle.of(toHeroContext).style,
+      child: toHeroContext.widget,
+    );
+  }
+
+  @override
+  void dispose() {
+    // Clean up the controller when the widget is removed from the
+    // widget tree.
+    myController.removeListener(_search);
+    myController.dispose();
+    super.dispose();
+  }
+
+  _search() {
+    if (_debounce?.isActive ?? false) _debounce.cancel();
+    _debounce = Timer(const Duration(milliseconds: 150), () {
+      final res = fuse.search(myController.text);
+      setState(() {
+        _searchNotes = res.map((r) => r.item).toList();
+      });
+    });
   }
 
   @override
@@ -131,51 +192,89 @@ class _NovelPageState extends State<NovelPage> {
     return FutureBuilder(
       future: _notes,
       builder: (BuildContext context, AsyncSnapshot<List<Note>> snapshot) {
-        return Container(
-            padding: EdgeInsets.only(left: 20, right: 20, bottom: 20, top: 16),
-            child: Stack(
-              children: <Widget>[
-                Align(
-                    alignment: Alignment.topLeft,
-                    child: RefreshIndicator(
-                        key: _refreshKey,
-                        onRefresh: () { return _notes = _db.sync('TODO'); },
-                        child: ListView.builder(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            itemCount: 50,
-                            itemBuilder: (context, index) {
-                              return ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(
-                                  "Title $index",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                                subtitle: Text("Context $index"),
-                              );
-                            }))),
-                Align(
-                  alignment: Alignment.bottomLeft,
-                  child: DecoratedBox(
-                      decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                              begin: FractionalOffset.bottomCenter,
-                              end: FractionalOffset.topCenter,
-                              stops: [
-                            0.85,
-                            1.0
-                          ],
-                              colors: [
-                            Theme.of(context).scaffoldBackgroundColor,
-                            Theme.of(context)
-                                .scaffoldBackgroundColor
-                                .withAlpha(0),
-                          ])),
+        if (snapshot.hasData) {
+          fuse = Fuzzy(
+            snapshot.data,
+            options: FuzzyOptions(
+              keys: [
+                WeightedKey(
+                    name: "titleOrFilename",
+                    getter: (x) => x.titleOrFilename(),
+                    weight: 1.0),
+                WeightedKey(
+                    name: "summary", getter: (x) => x.summary, weight: 0.25),
+              ],
+            ),
+          );
+          if (_searchNotes == null) {
+            _searchNotes = snapshot.data;
+          }
+
+          return Container(
+              padding: EdgeInsets.only(top: 16),
+              child: Stack(
+                children: <Widget>[
+                  Align(
+                      alignment: Alignment.topLeft,
+                      child: RefreshIndicator(
+                          key: _refreshKey,
+                          onRefresh: () {
+                            setState(() {
+                              _notes = _db.sync(widget.helper.getNotesFolder());
+                            });
+
+                            return _notes;
+                          },
+                          child: ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: _searchNotes.length,
+                              itemBuilder: (note, index) {
+                                final _parentKey = GlobalKey();
+                                final note = _searchNotes[index];
+
+                                return ListTile(
+                                  key: _parentKey,
+                                  contentPadding:
+                                      EdgeInsets.only(left: 20, right: 20),
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                        MorpheusPageRoute(
+                                            builder: (context) =>
+                                                NotePage(titleTag: "$index"),
+                                            parentKey: _parentKey));
+                                  },
+                                  title: Hero(
+                                      flightShuttleBuilder:
+                                          _flightShuttleBuilder,
+                                      tag: "$index",
+                                      child: Text(
+                                        note.titleOrFilename(),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      )),
+                                  subtitle: Text(note.summary),
+                                );
+                              }))),
+                  Align(
+                      alignment: Alignment.bottomLeft,
                       child: Container(
+                        decoration: BoxDecoration(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            boxShadow: [
+                              BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 1,
+                                  offset: Offset(0, -2))
+                            ]),
                         child: TextFormField(
-                          decoration: InputDecoration.collapsed(
+                          key: _textFieldKey,
+                          controller: myController,
+                          decoration: InputDecoration(
                             hintText: "sup?",
+                            contentPadding: EdgeInsets.only(
+                                bottom: 16, top: 16, left: 20, right: 20),
+                            border: InputBorder.none,
                           ),
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
@@ -183,19 +282,18 @@ class _NovelPageState extends State<NovelPage> {
                           ),
                           onFieldSubmitted: (String str) {
                             print("Submitted $str");
+                            Navigator.of(context).push(MorpheusPageRoute(
+                                builder: (context) => Scaffold(),
+                                parentKey: _textFieldKey));
                           },
-                          onChanged: (String str) {
-                            if (str.isEmpty) {
-                              print("Empty!");
-                            }
-                          },
-                          autofocus: true,
+                          // autofocus: true,
                         ),
-                        padding: EdgeInsets.only(top: 16),
                       )),
-                ),
-              ],
-            ));
+                ],
+              ));
+        } else {
+          return Container();
+        }
       },
     );
   }

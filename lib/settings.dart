@@ -1,7 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'circle_tab_indicator.dart';
 
@@ -126,11 +131,13 @@ class GeneralSettings extends StatefulWidget {
 class _GeneralSettingsState extends State<GeneralSettings> {
   String _screen;
   String _format;
+  String _notesFolder;
 
   @override
   Widget build(BuildContext context) {
     _screen = widget.helper.getDefaultScreen();
     _format = widget.helper.getFileFormat();
+    _notesFolder = widget.helper.getNotesFolder();
 
     return ListView(
       children: <Widget>[
@@ -155,11 +162,14 @@ class _GeneralSettingsState extends State<GeneralSettings> {
           },
         ),
         ListTile(
+          enabled: Platform.isAndroid,
           contentPadding: EdgeInsets.only(left: 57.0),
           title: Text(
             "Notes folder",
           ),
-          subtitle: Text("/sdcard/bullshit_etc"),
+          onTap: _chooseDir,
+          subtitle:
+              Platform.isAndroid ? Text(_notesFolder) : Text("Disabled on iOS"),
         ),
       ],
     );
@@ -198,6 +208,19 @@ class _GeneralSettingsState extends State<GeneralSettings> {
     setState(() {
       _screen = describeEnum(s);
     });
+  }
+
+  Future<void> _chooseDir() async {
+    File file = await FilePicker.getFile();
+    if (file != null) {
+      String path = dirname(file.path);
+      await widget.helper.setNotesFolder(path);
+      setState(() {
+        _notesFolder = path;
+      });
+    } else {
+      return null;
+    }
   }
 
   Future<void> _fileFormat(BuildContext context) async {
@@ -276,13 +299,24 @@ class PrefsHelper {
   static const String DefaultDefaultScreen = 'Note';
   static const String DefaultFileFormat = 'yyyyMMddhhmmss_%s.org';
 
+  static String defaultNotesFolder;
+
   Future<PrefsHelper> init() async {
     prefs = await SharedPreferences.getInstance();
+    defaultNotesFolder = (await getApplicationDocumentsDirectory()).path;
     return this;
   }
 
   String getDefaultScreen() {
     return prefs.getString("default_screen") ?? DefaultDefaultScreen;
+  }
+
+  int getDefaultScreenAsInt() {
+    switch(getDefaultScreen()) {
+      case "Remember": return 0;
+      case "Note": return 1;
+      default: return 0;
+    }
   }
 
   Future<bool> setDefaultScreen(Screen value) async {
@@ -295,5 +329,13 @@ class PrefsHelper {
 
   Future<bool> setFileFormat(String value) async {
     return prefs.setString("notes_file_format", value);
+  }
+
+  String getNotesFolder() {
+    return prefs.getString("notes_folder") ?? defaultNotesFolder;
+  }
+
+  Future<bool> setNotesFolder(String value) async {
+    return prefs.setString("notes_folder", value);
   }
 }
