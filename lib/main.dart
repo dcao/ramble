@@ -10,10 +10,10 @@ import 'package:sup/themes.dart';
 import 'package:sup/note.dart';
 import 'package:sup/components/circle_tab_indicator.dart';
 
-// import 'package:flutter/scheduler.dart' show timeDilation;
+import 'package:flutter/scheduler.dart' show timeDilation;
 
 void main() {
-  // timeDilation = 5.0;
+  timeDilation = 1.0;
 
   runApp(Sup());
 }
@@ -232,10 +232,13 @@ class _NovelPageState extends State<NovelPage> {
                                   onTap: () {
                                     Navigator.of(context)
                                         .push(MorpheusPageRoute(
-                                          transitionToChild: false,
+                                      transitionToChild: false,
+                                      transitionDuration: Duration(milliseconds: 500),
                                       builder: (context) => NotePage(
-                                          title: note.titleOrFilename(),
-                                          titleTag: index),
+                                        title: note.titleOrFilename(),
+                                        titleTag: index,
+                                        note: note,
+                                      ),
                                       parentKey: _parentKey,
                                     ));
                                   },
@@ -297,7 +300,7 @@ class _NovelPageState extends State<NovelPage> {
                                 builder: (context) => Scaffold(),
                                 parentKey: _textFieldKey));
                           },
-                          // autofocus: true,
+                          autofocus: false,
                         ),
                       )),
                 ],

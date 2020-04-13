@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'parse.dart';
@@ -46,6 +49,18 @@ class Note {
     filename = map[columnFilename];
     summary = map[columnSummary];
     created = map[columnCreated];
+  }
+
+  Future<String> getContents(String basePath) async {
+    final f = File(join(basePath, filename));
+
+    return f.readAsString();
+  }
+
+  Future<void> saveContents(String basePath, String txt) async {
+    final f = File(join(basePath, filename));
+    await f.writeAsString(txt);
+    return null;
   }
 }
 
