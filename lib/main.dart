@@ -1,17 +1,20 @@
 import 'dart:async';
 
-import 'package:declarative_animated_list/declarative_animated_list.dart';
 import 'package:flutter/material.dart';
 import 'package:fuzzy/fuzzy.dart';
 import 'package:morpheus/morpheus.dart';
 import 'package:sup/backend/note.dart';
+import 'package:sup/components/shared_text.dart';
 import 'package:sup/settings.dart';
 import 'package:sup/themes.dart';
 import 'package:sup/note.dart';
+import 'package:sup/components/circle_tab_indicator.dart';
 
-import 'circle_tab_indicator.dart';
+// import 'package:flutter/scheduler.dart' show timeDilation;
 
 void main() {
+  // timeDilation = 5.0;
+
   runApp(Sup());
 }
 
@@ -155,19 +158,6 @@ class _NovelPageState extends State<NovelPage> {
     myController.addListener(_search);
   }
 
-  Widget _flightShuttleBuilder(
-    BuildContext flightContext,
-    Animation<double> animation,
-    HeroFlightDirection flightDirection,
-    BuildContext fromHeroContext,
-    BuildContext toHeroContext,
-  ) {
-    return DefaultTextStyle(
-      style: DefaultTextStyle.of(toHeroContext).style,
-      child: toHeroContext.widget,
-    );
-  }
-
   @override
   void dispose() {
     // Clean up the controller when the widget is removed from the
@@ -225,7 +215,10 @@ class _NovelPageState extends State<NovelPage> {
 
                             return _notes;
                           },
-                          child: ListView.builder(
+                          child: ListView.separated(
+                              separatorBuilder: (_a, _b) {
+                                return Divider();
+                              },
                               physics: const AlwaysScrollableScrollPhysics(),
                               itemCount: _searchNotes.length,
                               itemBuilder: (note, index) {
@@ -237,22 +230,40 @@ class _NovelPageState extends State<NovelPage> {
                                   contentPadding:
                                       EdgeInsets.only(left: 20, right: 20),
                                   onTap: () {
-                                    Navigator.of(context).push(
-                                        MorpheusPageRoute(
-                                            builder: (context) =>
-                                                NotePage(titleTag: "$index"),
-                                            parentKey: _parentKey));
+                                    Navigator.of(context)
+                                        .push(MorpheusPageRoute(
+                                          transitionToChild: false,
+                                      builder: (context) => NotePage(
+                                          title: note.titleOrFilename(),
+                                          titleTag: index),
+                                      parentKey: _parentKey,
+                                    ));
                                   },
                                   title: Hero(
-                                      flightShuttleBuilder:
-                                          _flightShuttleBuilder,
-                                      tag: "$index",
-                                      child: Text(
+                                    tag: index,
+                                    child: SharedText(
+                                      note.titleOrFilename(),
+                                      viewState: ViewState.shrunk,
+                                    ),
+                                    flightShuttleBuilder: (
+                                      BuildContext flightContext,
+                                      Animation<double> animation,
+                                      HeroFlightDirection flightDirection,
+                                      BuildContext fromHeroContext,
+                                      BuildContext toHeroContext,
+                                    ) {
+                                      return SharedText(
                                         note.titleOrFilename(),
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      )),
+                                        isOverflow: true,
+                                        viewState: flightDirection ==
+                                                HeroFlightDirection.push
+                                            ? ViewState.enlarge
+                                            : ViewState.shrink,
+                                        smallFontSize: 15.0,
+                                        largeFontSize: 28.0,
+                                      );
+                                    },
+                                  ),
                                   subtitle: Text(note.summary),
                                 );
                               }))),
