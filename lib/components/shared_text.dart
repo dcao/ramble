@@ -62,9 +62,9 @@ class SharedText extends StatefulWidget {
     this.title, {
     Key key,
     @required this.viewState,
-    this.smallFontSize = 15.0,
+    this.smallFontSize = 16.0,
     this.largeFontSize = 28.0,
-    this.maxLines = 2,
+    this.maxLines = 3,
     this.textOverflow = TextOverflow.ellipsis,
     this.isOverflow = false,
   }) : super(key: key);

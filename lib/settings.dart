@@ -30,6 +30,7 @@ class SettingsPage extends StatelessWidget {
               child: Scaffold(
                   appBar: AppBar(
                     // backgroundColor: Colors.white,
+                    leading: Container(),
                     elevation: 0,
                     backgroundColor: Colors.transparent,
                     bottom: PreferredSize(

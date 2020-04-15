@@ -28,7 +28,11 @@ class Parser {
     // it line-by-line.
 
     try {
-      Note note = Note(filename: basename(file.path), summary: null);
+      Note note = Note(
+        filename: basename(file.path),
+        summary: null,
+        modified: await file.lastModified(),
+        );
 
       bool summarized = false;
 
@@ -41,9 +45,6 @@ class Parser {
         String l = line.toLowerCase();
         if (l.startsWith("#+title")) {
           note.title ??= parseProp("title", line);
-        } else if (l.startsWith("#+created")) {
-          String createdS = parseProp("created", line);
-          note.created ??= createdS == null ? null : int.parse(createdS);
         } else if (!line.startsWith("#") &&
             line.isNotEmpty && !summarized) {
           note.summary = line;

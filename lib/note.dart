@@ -107,6 +107,17 @@ class _NotePageState extends State<NotePage>
               return Scaffold(
                 floatingActionButtonLocation:
                     FloatingActionButtonLocation.endDocked,
+                appBar: AppBar(
+                  elevation: 2.0,
+                  leading: IconButton(
+                    iconSize: 20.0,
+                    padding: EdgeInsets.only(bottom: 4.0),
+                    icon: Icon(Icons.clear, color: Colors.black54),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
                 floatingActionButton: ScaleTransition(
                   scale: _fabAnim,
                   child: FloatingActionButton(
@@ -115,28 +126,34 @@ class _NotePageState extends State<NotePage>
                   ),
                 ),
                 bottomNavigationBar: SlideTransition(
-                  position: _bottomBarAnim,
-                  child: BottomAppBar(
-                    shape: CircularNotchedRectangle(),
-                    notchMargin: 4.0,
-                    child: new Row(
-                      mainAxisSize: MainAxisSize.max,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        IconButton(
-                          icon: Icon(Icons.link),
-                          onPressed: () {},
+                    position: _bottomBarAnim,
+                    child: Transform.translate(
+                      offset: Offset(
+                          0.0, -1 * MediaQuery.of(context).viewInsets.bottom),
+                      child: BottomAppBar(
+                        shape: CircularNotchedRectangle(),
+                        notchMargin: 4.0,
+                        child: new Row(
+                          mainAxisSize: MainAxisSize.max,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            IconButton(
+                              icon: Icon(Icons.link),
+                              onPressed: () {},
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                body: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                      ),
+                    )),
+                body: SingleChildScrollView(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                       Hero(
                           tag: widget.titleTag,
                           child: SharedText(widget.title,
+                              smallFontSize: 16.0,
+                              largeFontSize: 28.0,
                               viewState: ViewState.enlarged)),
                       FadeTransition(
                         opacity: _tfOpacityAnim,
@@ -149,7 +166,7 @@ class _NotePageState extends State<NotePage>
                           maxLines: null,
                         ),
                       ),
-                    ]),
+                    ])),
               );
             }));
   }

@@ -4,10 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:fuzzy/fuzzy.dart';
 import 'package:morpheus/morpheus.dart';
 import 'package:sup/backend/note.dart';
-import 'package:sup/components/shared_text.dart';
+import 'package:sup/components/sparse_note.dart';
 import 'package:sup/settings.dart';
 import 'package:sup/themes.dart';
-import 'package:sup/note.dart';
 import 'package:sup/components/circle_tab_indicator.dart';
 
 import 'package:flutter/scheduler.dart' show timeDilation;
@@ -215,66 +214,19 @@ class _NovelPageState extends State<NovelPage> {
 
                             return _notes;
                           },
-                          child: ListView.separated(
-                              separatorBuilder: (_a, _b) {
-                                return Divider();
-                              },
+                          child: ListView.builder(
                               physics: const AlwaysScrollableScrollPhysics(),
                               itemCount: _searchNotes.length,
                               itemBuilder: (note, index) {
-                                final _parentKey = GlobalKey();
                                 final note = _searchNotes[index];
 
-                                return ListTile(
-                                  key: _parentKey,
-                                  contentPadding:
-                                      EdgeInsets.only(left: 20, right: 20),
-                                  onTap: () {
-                                    Navigator.of(context)
-                                        .push(MorpheusPageRoute(
-                                      transitionToChild: false,
-                                      transitionDuration: Duration(milliseconds: 500),
-                                      builder: (context) => NotePage(
-                                        title: note.titleOrFilename(),
-                                        titleTag: index,
-                                        note: note,
-                                      ),
-                                      parentKey: _parentKey,
-                                    ));
-                                  },
-                                  title: Hero(
-                                    tag: index,
-                                    child: SharedText(
-                                      note.titleOrFilename(),
-                                      viewState: ViewState.shrunk,
-                                    ),
-                                    flightShuttleBuilder: (
-                                      BuildContext flightContext,
-                                      Animation<double> animation,
-                                      HeroFlightDirection flightDirection,
-                                      BuildContext fromHeroContext,
-                                      BuildContext toHeroContext,
-                                    ) {
-                                      return SharedText(
-                                        note.titleOrFilename(),
-                                        isOverflow: true,
-                                        viewState: flightDirection ==
-                                                HeroFlightDirection.push
-                                            ? ViewState.enlarge
-                                            : ViewState.shrink,
-                                        smallFontSize: 15.0,
-                                        largeFontSize: 28.0,
-                                      );
-                                    },
-                                  ),
-                                  subtitle: Text(note.summary),
-                                );
+                                return SparseNote(note: note, titleKey: index);
                               }))),
                   Align(
                       alignment: Alignment.bottomLeft,
                       child: Container(
                         decoration: BoxDecoration(
-                            color: Theme.of(context).scaffoldBackgroundColor,
+                            color: Colors.grey[50],
                             boxShadow: [
                               BoxShadow(
                                   color: Colors.black12,

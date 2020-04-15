@@ -13,21 +13,21 @@ final String columnId = '_id';
 final String columnTitle = 'title';
 final String columnFilename = 'filename';
 final String columnSummary = 'summary';
-final String columnCreated = 'created';
+final String columnModified = 'modified';
 
 class Note {
   int id;
   String title;
   String filename;
   String summary;
-  int created;
+  DateTime modified;
 
   Map<String, dynamic> toMap() {
     var map = <String, dynamic>{
       columnTitle: title,
       columnFilename: filename,
       columnSummary: summary,
-      columnCreated: created,
+      columnModified: modified.millisecondsSinceEpoch,
     };
 
     if (id != null) {
@@ -41,14 +41,14 @@ class Note {
     return title ?? filename;
   }
 
-  Note({this.id, this.title, this.filename, this.summary, this.created});
+  Note({this.id, this.title, this.filename, this.summary, this.modified});
 
   Note.fromMap(Map<String, dynamic> map) {
     id = map[columnId];
     title = map[columnTitle];
     filename = map[columnFilename];
     summary = map[columnSummary];
-    created = map[columnCreated];
+    modified = DateTime.fromMillisecondsSinceEpoch(map[columnModified]);
   }
 
   Future<String> getContents(String basePath) async {
@@ -78,7 +78,7 @@ create table $tableNote (
   $columnTitle text,
   $columnFilename text not null,
   $columnSummary text,
-  $columnCreated integer)
+  $columnModified integer not null)
 ''');
         });
   }
@@ -105,7 +105,7 @@ create table $tableNote (
   }
 
   Future<List<Note>> openAndSync(String path) async {
-    await open(p.join((await getApplicationSupportDirectory()).path, "notes.db"));
+    await open(p.join((await getApplicationSupportDirectory()).path, "sqlite.db"));
     return sync(path);
   }
 
@@ -129,7 +129,7 @@ create table $tableNote (
         filename: maps[i]['filename'],
         title: maps[i]['title'],
         summary: maps[i]['summary'],
-        created: maps[i]['created'],
+        modified: maps[i]['modified'],
       );
     });
   }
@@ -141,7 +141,7 @@ create table $tableNote (
         columnFilename,
         columnTitle,
         columnSummary,
-        columnCreated
+        columnModified
       ],
       where: '$columnId = ?',
       whereArgs: [id]
