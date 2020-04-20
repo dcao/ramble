@@ -61,7 +61,7 @@ class Note {
 
     var emptySkip = true;
 
-    f
+    await f
         .openRead()
         .transform(utf8.decoder) // Decode bytes to UTF-8.
         .transform(new LineSplitter()) // Convert stream to individual lines.
@@ -71,15 +71,15 @@ class Note {
       if (l.startsWith("#+title")) {
         m["title"] = Parser.parseProp("title", line);
       } else if (line.isNotEmpty || !emptySkip) {
-          sss = sss + line;
+          sss = sss + "$line\n";
           emptySkip = false;
       }
-    });
+    }).asFuture();
 
     return Tuple2(m, sss);
   }
 
-  Future<void> saveContents(
+  Future<Note> saveContents(
       String basePath, Map<String, String> noteProps, String txt) async {
     if (noteProps != null) {
       var s = "";
@@ -95,12 +95,17 @@ class Note {
 
       Note newNote = Parser.parseNoteText(s);
 
-      // Update this Note based on how we modified its text.
-      title = newNote.title;
-      summary = newNote.summary;
-      modified = await f.lastModified();
+      return newNote;
+    } else {
+      return null;
     }
-    return null;
+  }
+
+  void updateNote(Note newNote) {
+    // Update this Note based on how we modified its text.
+    title = newNote.title;
+    summary = newNote.summary;
+    modified = DateTime.now();
   }
 }
 
@@ -152,10 +157,6 @@ create table $tableNote (
     note?.id = await db.insert(tableNote, note?.toMap(),
         conflictAlgorithm: ConflictAlgorithm.replace);
     return note;
-  }
-
-  Future<void> save(Note note, Map<String, String> noteProps, String content) {
-    // TODO: Do database update stuff
   }
 
   Future<List<Note>> notes() async {

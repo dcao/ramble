@@ -183,15 +183,17 @@ class _NovelPageState extends State<NovelPage> {
     });
   }
 
-  _onSparseNoteTap(SparseNote sp, Tuple2<Map<String, String>, String> res) {
+  _onSparseNoteTap(SparseNote sp, Tuple2<Map<String, String>, String> res) async {
     // If the whole res is null, we cancelled.
     // If the first element in the tuple is null, we backed out
     // before the future was finished.
     if (res != null && res.item1 != null) {
+      // await Future.delayed(Duration(milliseconds: 500));
+      Note newNote = await sp.note.saveContents(widget.helper.getNotesFolder(), res.item1, res.item2);
       setState(() {
-        // sp.note.saveContents(widget.helper.getNotesFolder(), res.item1, res.item2);
-        sp.note.title = "yeet";
+        sp.note.updateNote(newNote);
       });
+      _db.update(sp.note);
     }
   }
 

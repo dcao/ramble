@@ -205,10 +205,12 @@ class _GeneralSettingsState extends State<GeneralSettings> {
           );
         });
 
-    await widget.helper.setDefaultScreen(s);
-    setState(() {
-      _screen = describeEnum(s);
-    });
+    if (s != null) {
+      await widget.helper.setDefaultScreen(s);
+      setState(() {
+        _screen = describeEnum(s);
+      });
+    }
   }
 
   Future<void> _chooseDir() async {

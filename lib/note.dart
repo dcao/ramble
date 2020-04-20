@@ -24,7 +24,7 @@ class _NotePageState extends State<NotePage>
     with SingleTickerProviderStateMixin {
   final pf = PrefsHelper();
   final _controller = TextEditingController();
-  Future<String> nd;
+  Future<void> nd;
 
   AnimationController _ac;
   Animation<Offset> _bottomBarAnim;
@@ -80,7 +80,7 @@ class _NotePageState extends State<NotePage>
     nd = _noteData();
   }
 
-  Future<String> _noteData() async {
+  Future<void> _noteData() async {
     await Future.delayed(Duration(milliseconds: 330));
 
     await pf.init();
@@ -92,7 +92,9 @@ class _NotePageState extends State<NotePage>
 
     _ac.forward(from: 0.0);
 
-    return res.item2;
+    _controller.text = res.item2;
+
+    return null;
   }
 
   Future<bool> _pop() async {
@@ -110,115 +112,101 @@ class _NotePageState extends State<NotePage>
 
   @override
   Widget build(BuildContext context) {
+    AppBar ab = AppBar(
+      elevation: 1.0,
+      backgroundColor: Colors.grey[50],
+      leading: IconButton(
+        iconSize: 20.0,
+        padding: EdgeInsets.only(bottom: 4.0),
+        icon: Icon(Icons.clear, color: Colors.black54),
+        onPressed: () {
+          Navigator.pop(context);
+        },
+      ),
+    );
+
     return WillPopScope(
         onWillPop: _pop,
-        child: FutureBuilder(
-            future: nd,
-            builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
-              if (snapshot.hasData) {
-                _controller.value = TextEditingValue(
-                  text: snapshot.data,
-                  selection: TextSelection.fromPosition(
-                    TextPosition(offset: snapshot.data.length),
-                  ),
-                );
-              }
-
-              AppBar ab = AppBar(
-                elevation: 1.0,
-                backgroundColor: Colors.grey[50],
-                leading: IconButton(
-                  iconSize: 20.0,
-                  padding: EdgeInsets.only(bottom: 4.0),
-                  icon: Icon(Icons.clear, color: Colors.black54),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                ),
-              );
-
-              return Scaffold(
-                floatingActionButtonLocation:
-                    FloatingActionButtonLocation.endDocked,
-                backgroundColor: Colors.grey[50],
-                appBar: PreferredSize(
-                  preferredSize: ab.preferredSize,
-                  child: SlideTransition(
-                    position: _appBarAnim,
-                    child: ab,
-                  ),
-                ),
-                floatingActionButton: ScaleTransition(
-                  scale: _fabAnim,
-                  child: FloatingActionButton(
-                    child: const Icon(Icons.done),
-                    onPressed: () {
-                      var contents = _controller.text;
-                      Navigator.of(context).pop(Tuple2(noteProps, contents));
-                    },
+        child: Scaffold(
+          floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
+          backgroundColor: Colors.grey[50],
+          appBar: PreferredSize(
+            preferredSize: ab.preferredSize,
+            child: SlideTransition(
+              position: _appBarAnim,
+              child: ab,
+            ),
+          ),
+          floatingActionButton: ScaleTransition(
+            scale: _fabAnim,
+            child: FloatingActionButton(
+              child: const Icon(Icons.done),
+              onPressed: () {
+                var contents = _controller.text;
+                Navigator.of(context).pop(Tuple2(noteProps, contents));
+              },
+            ),
+          ),
+          bottomNavigationBar: SlideTransition(
+              position: _bottomBarAnim,
+              child: Transform.translate(
+                offset:
+                    Offset(0.0, -1 * MediaQuery.of(context).viewInsets.bottom),
+                child: BottomAppBar(
+                  shape: CircularNotchedRectangle(),
+                  notchMargin: 8.0,
+                  child: new Row(
+                    mainAxisSize: MainAxisSize.max,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      IconButton(
+                        icon: Icon(Icons.link),
+                        onPressed: () {},
+                      ),
+                    ],
                   ),
                 ),
-                bottomNavigationBar: SlideTransition(
-                    position: _bottomBarAnim,
-                    child: Transform.translate(
-                      offset: Offset(
-                          0.0, -1 * MediaQuery.of(context).viewInsets.bottom),
-                      child: BottomAppBar(
-                        shape: CircularNotchedRectangle(),
-                        notchMargin: 8.0,
-                        child: new Row(
-                          mainAxisSize: MainAxisSize.max,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: <Widget>[
-                            IconButton(
-                              icon: Icon(Icons.link),
-                              onPressed: () {},
-                            ),
-                          ],
+              )),
+          body: SingleChildScrollView(
+            child: Container(
+                padding: EdgeInsets.only(
+                    left: 20.0, right: 20.0, bottom: 16.0, top: 36.0),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Hero(
+                          tag: widget.titleTag,
+                          child: SharedText(widget.title,
+                              smallFontSize: 16.0,
+                              largeFontSize: 28.0,
+                              viewState: ViewState.enlarged)),
+                      SizedBox(height: 4.0),
+                      FadeTransition(
+                          opacity: _tfOpacityAnim,
+                          child: Text(
+                            "Last edited: " +
+                                (widget.note != null
+                                    ? DateFormat.yMMMd()
+                                        .add_jm()
+                                        .format(widget.note.modified)
+                                    : "right now"),
+                            style: TextStyle(color: Colors.grey[500]),
+                          )),
+                      SizedBox(height: 32.0),
+                      FadeTransition(
+                        opacity: _tfOpacityAnim,
+                        child: TextFormField(
+                          controller: _controller,
+                          keyboardType: TextInputType.multiline,
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: "Write something...",
+                          ),
+                          maxLines: null,
                         ),
                       ),
-                    )),
-                body: SingleChildScrollView(
-                  child: Container(
-                      padding: EdgeInsets.only(
-                          left: 20.0, right: 20.0, bottom: 16.0, top: 36.0),
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Hero(
-                                tag: widget.titleTag,
-                                child: SharedText(widget.title,
-                                    smallFontSize: 16.0,
-                                    largeFontSize: 28.0,
-                                    viewState: ViewState.enlarged)),
-                            SizedBox(height: 4.0),
-                            FadeTransition(
-                                opacity: _tfOpacityAnim,
-                                child: Text(
-                                  "Last edited: " +
-                                      (widget.note != null
-                                          ? DateFormat.yMMMd()
-                                              .add_jm()
-                                              .format(widget.note.modified)
-                                          : "right now"),
-                                  style: TextStyle(color: Colors.grey[500]),
-                                )),
-                            SizedBox(height: 32.0),
-                            FadeTransition(
-                              opacity: _tfOpacityAnim,
-                              child: TextFormField(
-                                controller: _controller,
-                                keyboardType: TextInputType.multiline,
-                                decoration: InputDecoration(
-                                  border: InputBorder.none,
-                                  hintText: "Write something...",
-                                ),
-                                maxLines: null,
-                              ),
-                            ),
-                          ])),
-                ),
-              );
-            }));
+                    ])),
+          ),
+        ));
   }
 }
