@@ -26,6 +26,9 @@ dependencies:
   sqflite: ^1.3.0
 
   timeago: ^2.0.26
+  intl: ^0.16.1
+
+  tuple: ^1.0.3
 
   permission_handler: ^5.0.0
 

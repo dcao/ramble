@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:tuple/tuple.dart';
 
 import 'parse.dart';
 import 'package:path/path.dart' as p;
@@ -51,15 +53,53 @@ class Note {
     modified = DateTime.fromMillisecondsSinceEpoch(map[columnModified]);
   }
 
-  Future<String> getContents(String basePath) async {
+  Future<Tuple2<Map<String, String>, String>> getContents(
+      String basePath) async {
+    String sss = "";
+    Map<String, String> m = Map();
     final f = File(join(basePath, filename));
 
-    return f.readAsString();
+    var emptySkip = true;
+
+    f
+        .openRead()
+        .transform(utf8.decoder) // Decode bytes to UTF-8.
+        .transform(new LineSplitter()) // Convert stream to individual lines.
+        .listen((String line) {
+      // Process results.
+      String l = line.toLowerCase();
+      if (l.startsWith("#+title")) {
+        m["title"] = Parser.parseProp("title", line);
+      } else if (line.isNotEmpty || !emptySkip) {
+          sss = sss + line;
+          emptySkip = false;
+      }
+    });
+
+    return Tuple2(m, sss);
   }
 
-  Future<void> saveContents(String basePath, String txt) async {
-    final f = File(join(basePath, filename));
-    await f.writeAsString(txt);
+  Future<void> saveContents(
+      String basePath, Map<String, String> noteProps, String txt) async {
+    if (noteProps != null) {
+      var s = "";
+
+      noteProps.forEach((key, value) {
+        s += "#+$key: $value\n";
+      });
+
+      s += txt;
+
+      final f = File(join(basePath, filename));
+      await f.writeAsString(s);
+
+      Note newNote = Parser.parseNoteText(s);
+
+      // Update this Note based on how we modified its text.
+      title = newNote.title;
+      summary = newNote.summary;
+      modified = await f.lastModified();
+    }
     return null;
   }
 }
@@ -68,11 +108,9 @@ class NoteProvider {
   Database db;
 
   Future<void> open(String name) async {
-    db = await openDatabase(
-        p.join(await getDatabasesPath(), name),
-        version: 1,
+    db = await openDatabase(p.join(await getDatabasesPath(), name), version: 1,
         onCreate: (Database db, int version) async {
-          await db.execute('''
+      await db.execute('''
 create table $tableNote ( 
   $columnId integer primary key autoincrement, 
   $columnTitle text,
@@ -80,7 +118,7 @@ create table $tableNote (
   $columnSummary text,
   $columnModified integer not null)
 ''');
-        });
+    });
   }
 
   Future<List<Note>> sync(String path) async {
@@ -105,17 +143,19 @@ create table $tableNote (
   }
 
   Future<List<Note>> openAndSync(String path) async {
-    await open(p.join((await getApplicationSupportDirectory()).path, "sqlite.db"));
+    await open(
+        p.join((await getApplicationSupportDirectory()).path, "sqlite.db"));
     return sync(path);
   }
 
   Future<Note> insert(Note note) async {
-    note?.id = await db.insert(
-      tableNote,
-      note?.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace
-    );
+    note?.id = await db.insert(tableNote, note?.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
     return note;
+  }
+
+  Future<void> save(Note note, Map<String, String> noteProps, String content) {
+    // TODO: Do database update stuff
   }
 
   Future<List<Note>> notes() async {
@@ -136,16 +176,15 @@ create table $tableNote (
 
   Future<Note> getNote(int id) async {
     List<Map> maps = await db.query(tableNote,
-      columns: [
-        columnId,
-        columnFilename,
-        columnTitle,
-        columnSummary,
-        columnModified
-      ],
-      where: '$columnId = ?',
-      whereArgs: [id]
-    );
+        columns: [
+          columnId,
+          columnFilename,
+          columnTitle,
+          columnSummary,
+          columnModified
+        ],
+        where: '$columnId = ?',
+        whereArgs: [id]);
 
     if (maps.length > 0) {
       return Note.fromMap(maps.first);
@@ -174,4 +213,3 @@ create table $tableNote (
 
   Future close() async => db.close();
 }
-

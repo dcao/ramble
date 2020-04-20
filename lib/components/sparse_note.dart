@@ -8,8 +8,9 @@ import 'package:sup/note.dart';
 class SparseNote extends StatelessWidget {
   final Object titleKey;
   final Note note;
+  final Function onTap;
 
-  SparseNote({Key key, @required this.note, @required this.titleKey})
+  SparseNote({Key key, @required this.note, @required this.titleKey, this.onTap})
       : super(key: key);
 
   @override
@@ -21,8 +22,8 @@ class SparseNote extends StatelessWidget {
       elevation: 0,
       margin: EdgeInsets.only(left: 4.0, right: 4.0, bottom: 2.0, top: 2.0),
       child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(MorpheusPageRoute(
+        onTap: () async {
+          final res = await Navigator.of(context).push(MorpheusPageRoute(
             transitionToChild: false,
             transitionDuration: Duration(milliseconds: 500),
             builder: (context) => NotePage(
@@ -32,6 +33,8 @@ class SparseNote extends StatelessWidget {
             ),
             parentKey: _parentKey,
           ));
+
+          onTap(this, res);
         },
         child: Container(
           padding: EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
@@ -81,7 +84,7 @@ class SparseNote extends StatelessWidget {
                           ) {
                             return SharedText(
                               note.titleOrFilename(),
-                              isOverflow: false,
+                              isOverflow: true,
                               viewState:
                                   flightDirection == HeroFlightDirection.push
                                       ? ViewState.enlarge

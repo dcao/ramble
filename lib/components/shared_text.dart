@@ -35,16 +35,18 @@ class DestinationTitleContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: isOverflow
-          ? OverflowBox(
-              alignment: Alignment.topLeft,
-              maxWidth: double.infinity,
-              maxHeight: double.infinity,
-              child: _buildTitleText(),
-            )
-          : _buildTitleText(),
+    return SizedBox(
+      child: Material(
+        color: Colors.transparent,
+        child: isOverflow
+            ? OverflowBox(
+                alignment: Alignment.topLeft,
+                maxWidth: MediaQuery.of(context).size.width - 20,
+                maxHeight: double.infinity,
+                child: _buildTitleText(),
+              )
+            : _buildTitleText(),
+      ),
     );
   }
 }

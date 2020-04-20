@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fuzzy/fuzzy.dart';
 import 'package:morpheus/morpheus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:sup/backend/note.dart';
 import 'package:sup/components/sparse_note.dart';
 import 'package:sup/settings.dart';
@@ -10,6 +11,7 @@ import 'package:sup/themes.dart';
 import 'package:sup/components/circle_tab_indicator.dart';
 
 import 'package:flutter/scheduler.dart' show timeDilation;
+import 'package:tuple/tuple.dart';
 
 void main() {
   timeDilation = 1.0;
@@ -155,6 +157,11 @@ class _NovelPageState extends State<NovelPage> {
     super.initState();
     _notes = _db.openAndSync(widget.helper.getNotesFolder());
     myController.addListener(_search);
+    _handlePerms();
+  }
+
+  _handlePerms() async {
+    print(await Permission.storage.request().isGranted);
   }
 
   @override
@@ -176,6 +183,18 @@ class _NovelPageState extends State<NovelPage> {
     });
   }
 
+  _onSparseNoteTap(SparseNote sp, Tuple2<Map<String, String>, String> res) {
+    // If the whole res is null, we cancelled.
+    // If the first element in the tuple is null, we backed out
+    // before the future was finished.
+    if (res != null && res.item1 != null) {
+      setState(() {
+        // sp.note.saveContents(widget.helper.getNotesFolder(), res.item1, res.item2);
+        sp.note.title = "yeet";
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
@@ -191,7 +210,7 @@ class _NovelPageState extends State<NovelPage> {
                     getter: (x) => x.titleOrFilename(),
                     weight: 1.0),
                 WeightedKey(
-                    name: "summary", getter: (x) => x.summary, weight: 0.25),
+                    name: "summary", getter: (x) => x.summary, weight: 0.0),
               ],
             ),
           );
@@ -208,6 +227,12 @@ class _NovelPageState extends State<NovelPage> {
                       child: RefreshIndicator(
                           key: _refreshKey,
                           onRefresh: () {
+                            // TODO: This doesn't work correctly since we're updating
+                            // _notes but not _searchNotes
+                            //
+                            // We have to implement refreshing such that it updates
+                            // _searchNotes, taking into account the current search term
+
                             setState(() {
                               _notes = _db.sync(widget.helper.getNotesFolder());
                             });
@@ -220,7 +245,10 @@ class _NovelPageState extends State<NovelPage> {
                               itemBuilder: (note, index) {
                                 final note = _searchNotes[index];
 
-                                return SparseNote(note: note, titleKey: index);
+                                return SparseNote(
+                                    note: note,
+                                    titleKey: index,
+                                    onTap: _onSparseNoteTap);
                               }))),
                   Align(
                       alignment: Alignment.bottomLeft,

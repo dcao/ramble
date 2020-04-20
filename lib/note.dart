@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:sup/components/shared_text.dart';
 import 'package:sup/settings.dart';
+import 'package:tuple/tuple.dart';
 
 import 'backend/note.dart';
 
@@ -26,8 +28,11 @@ class _NotePageState extends State<NotePage>
 
   AnimationController _ac;
   Animation<Offset> _bottomBarAnim;
+  Animation<Offset> _appBarAnim;
   Animation<double> _fabAnim;
   Animation<double> _tfOpacityAnim;
+
+  Map<String, String> noteProps;
 
   static final Duration xlen = Duration(milliseconds: 250);
 
@@ -46,6 +51,14 @@ class _NotePageState extends State<NotePage>
     ).animate(CurvedAnimation(
       parent: _ac,
       curve: Interval(0.0, 1.0, curve: Curves.easeOutQuint),
+    ));
+
+    _appBarAnim = Tween<Offset>(
+      begin: Offset(0, -1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _ac,
+      curve: Interval(0.3, 1.0, curve: Curves.easeOutQuint),
     ));
 
     _fabAnim = Tween<double>(
@@ -72,11 +85,14 @@ class _NotePageState extends State<NotePage>
 
     await pf.init();
 
-    String res = await widget.note?.getContents(pf.getNotesFolder());
+    Tuple2<Map<String, String>, String> res =
+        await widget.note?.getContents(pf.getNotesFolder());
+
+    noteProps = res.item1;
 
     _ac.forward(from: 0.0);
 
-    return res;
+    return res.item2;
   }
 
   Future<bool> _pop() async {
@@ -85,13 +101,10 @@ class _NotePageState extends State<NotePage>
     return true;
   }
 
-  void _save() async {
-    // TODO
-  }
-
   @override
   void dispose() {
     _ac.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -102,27 +115,47 @@ class _NotePageState extends State<NotePage>
         child: FutureBuilder(
             future: nd,
             builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
-              _controller.text = snapshot.data;
+              if (snapshot.hasData) {
+                _controller.value = TextEditingValue(
+                  text: snapshot.data,
+                  selection: TextSelection.fromPosition(
+                    TextPosition(offset: snapshot.data.length),
+                  ),
+                );
+              }
+
+              AppBar ab = AppBar(
+                elevation: 1.0,
+                backgroundColor: Colors.grey[50],
+                leading: IconButton(
+                  iconSize: 20.0,
+                  padding: EdgeInsets.only(bottom: 4.0),
+                  icon: Icon(Icons.clear, color: Colors.black54),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                ),
+              );
 
               return Scaffold(
                 floatingActionButtonLocation:
                     FloatingActionButtonLocation.endDocked,
-                appBar: AppBar(
-                  elevation: 2.0,
-                  leading: IconButton(
-                    iconSize: 20.0,
-                    padding: EdgeInsets.only(bottom: 4.0),
-                    icon: Icon(Icons.clear, color: Colors.black54),
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                backgroundColor: Colors.grey[50],
+                appBar: PreferredSize(
+                  preferredSize: ab.preferredSize,
+                  child: SlideTransition(
+                    position: _appBarAnim,
+                    child: ab,
                   ),
                 ),
                 floatingActionButton: ScaleTransition(
                   scale: _fabAnim,
                   child: FloatingActionButton(
                     child: const Icon(Icons.done),
-                    onPressed: _save,
+                    onPressed: () {
+                      var contents = _controller.text;
+                      Navigator.of(context).pop(Tuple2(noteProps, contents));
+                    },
                   ),
                 ),
                 bottomNavigationBar: SlideTransition(
@@ -132,7 +165,7 @@ class _NotePageState extends State<NotePage>
                           0.0, -1 * MediaQuery.of(context).viewInsets.bottom),
                       child: BottomAppBar(
                         shape: CircularNotchedRectangle(),
-                        notchMargin: 4.0,
+                        notchMargin: 8.0,
                         child: new Row(
                           mainAxisSize: MainAxisSize.max,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -146,27 +179,45 @@ class _NotePageState extends State<NotePage>
                       ),
                     )),
                 body: SingleChildScrollView(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Hero(
-                          tag: widget.titleTag,
-                          child: SharedText(widget.title,
-                              smallFontSize: 16.0,
-                              largeFontSize: 28.0,
-                              viewState: ViewState.enlarged)),
-                      FadeTransition(
-                        opacity: _tfOpacityAnim,
-                        child: TextFormField(
-                          controller: _controller,
-                          keyboardType: TextInputType.multiline,
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                          ),
-                          maxLines: null,
-                        ),
-                      ),
-                    ])),
+                  child: Container(
+                      padding: EdgeInsets.only(
+                          left: 20.0, right: 20.0, bottom: 16.0, top: 36.0),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Hero(
+                                tag: widget.titleTag,
+                                child: SharedText(widget.title,
+                                    smallFontSize: 16.0,
+                                    largeFontSize: 28.0,
+                                    viewState: ViewState.enlarged)),
+                            SizedBox(height: 4.0),
+                            FadeTransition(
+                                opacity: _tfOpacityAnim,
+                                child: Text(
+                                  "Last edited: " +
+                                      (widget.note != null
+                                          ? DateFormat.yMMMd()
+                                              .add_jm()
+                                              .format(widget.note.modified)
+                                          : "right now"),
+                                  style: TextStyle(color: Colors.grey[500]),
+                                )),
+                            SizedBox(height: 32.0),
+                            FadeTransition(
+                              opacity: _tfOpacityAnim,
+                              child: TextFormField(
+                                controller: _controller,
+                                keyboardType: TextInputType.multiline,
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: "Write something...",
+                                ),
+                                maxLines: null,
+                              ),
+                            ),
+                          ])),
+                ),
               );
             }));
   }

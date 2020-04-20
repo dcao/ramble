@@ -23,6 +23,27 @@ class Parser {
         .toList();
   }
 
+  static Note parseNoteText(String txt) {
+    Note note = Note(
+      summary: null,
+    );
+    bool summarized = false;
+
+    txt.split("\n").forEach((line) {
+      String l = line.toLowerCase();
+      if (l.startsWith("#+title")) {
+        note.title ??= parseProp("title", line);
+      } else if (!line.startsWith("#") && line.isNotEmpty && !summarized) {
+        note.summary = line;
+        summarized = true;
+      }
+    });
+
+    // We return a note.
+    note.summary ??= "Empty note";
+    return note;
+  }
+
   static Future<Note> parseNote(File file) async {
     // For now, we just read the entire file rather than trying to read
     // it line-by-line.
@@ -32,7 +53,7 @@ class Parser {
         filename: basename(file.path),
         summary: null,
         modified: await file.lastModified(),
-        );
+      );
 
       bool summarized = false;
 
@@ -45,8 +66,7 @@ class Parser {
         String l = line.toLowerCase();
         if (l.startsWith("#+title")) {
           note.title ??= parseProp("title", line);
-        } else if (!line.startsWith("#") &&
-            line.isNotEmpty && !summarized) {
+        } else if (!line.startsWith("#") && line.isNotEmpty && !summarized) {
           note.summary = line;
           summarized = true;
         }
