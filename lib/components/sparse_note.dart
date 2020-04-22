@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:morpheus/page_routes/morpheus_page_route.dart';
-import 'package:sup/backend/note.dart';
-import 'package:sup/components/shared_text.dart';
-import 'package:sup/note.dart';
+import 'package:ramble/backend/note.dart';
+import 'package:ramble/components/shared_text.dart';
+import 'package:ramble/note.dart';
 
 class SparseNote extends StatelessWidget {
   final Object titleKey;

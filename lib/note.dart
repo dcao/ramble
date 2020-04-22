@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:sup/components/shared_text.dart';
-import 'package:sup/settings.dart';
+import 'package:ramble/components/shared_text.dart';
+import 'package:ramble/settings.dart';
 import 'package:tuple/tuple.dart';
 
 import 'backend/note.dart';

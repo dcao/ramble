@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:fuzzy/fuzzy.dart';
 import 'package:morpheus/morpheus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:sup/backend/note.dart';
-import 'package:sup/components/sparse_note.dart';
-import 'package:sup/settings.dart';
-import 'package:sup/themes.dart';
-import 'package:sup/components/circle_tab_indicator.dart';
+import 'package:ramble/backend/note.dart';
+import 'package:ramble/components/sparse_note.dart';
+import 'package:ramble/settings.dart';
+import 'package:ramble/themes.dart';
+import 'package:ramble/components/circle_tab_indicator.dart';
 
 import 'package:flutter/scheduler.dart' show timeDilation;
 import 'package:tuple/tuple.dart';
@@ -16,10 +16,10 @@ import 'package:tuple/tuple.dart';
 void main() {
   timeDilation = 1.0;
 
-  runApp(Sup());
+  runApp(Ramble());
 }
 
-class Sup extends StatelessWidget {
+class Ramble extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
@@ -267,7 +267,7 @@ class _NovelPageState extends State<NovelPage> {
                           key: _textFieldKey,
                           controller: myController,
                           decoration: InputDecoration(
-                            hintText: "sup?",
+                            hintText: "ramble",
                             contentPadding: EdgeInsets.only(
                                 bottom: 16, top: 16, left: 20, right: 20),
                             border: InputBorder.none,

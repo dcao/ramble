@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'package:sup/components/circle_tab_indicator.dart';
+import 'package:ramble/components/circle_tab_indicator.dart';
 
 class SettingsPage extends StatelessWidget {
   final List<Tab> myTabs = [
