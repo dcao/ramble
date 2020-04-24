@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fuzzy/fuzzy.dart';
 import 'package:morpheus/morpheus.dart';
+import 'package:path/path.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:ramble/backend/note.dart';
 import 'package:ramble/components/sparse_note.dart';
 import 'package:ramble/settings.dart';
 import 'package:ramble/themes.dart';
 import 'package:ramble/components/circle_tab_indicator.dart';
+import 'package:ramble/note.dart';
 
 import 'package:flutter/scheduler.dart' show timeDilation;
 import 'package:tuple/tuple.dart';
@@ -142,6 +144,8 @@ class NovelPage extends StatefulWidget {
 }
 
 class _NovelPageState extends State<NovelPage> {
+  static const TextFieldHero = "tfhero";
+
   NoteProvider _db = NoteProvider();
   Future<List<Note>> _notes;
   Fuzzy<Note> fuse;
@@ -151,6 +155,8 @@ class _NovelPageState extends State<NovelPage> {
   Timer _debounce;
 
   final _textFieldKey = GlobalKey();
+
+  bool snInvalid = true;
 
   @override
   void initState() {
@@ -183,18 +189,74 @@ class _NovelPageState extends State<NovelPage> {
     });
   }
 
-  _onSparseNoteTap(SparseNote sp, Tuple2<Map<String, String>, String> res) async {
+  Future<void> _refresh() {
+    snInvalid = false;
+    setState(() {
+      _notes = _db.sync(widget.helper.getNotesFolder());
+    });
+
+    return _notes;
+  }
+
+  _onSparseNoteTap(
+      SparseNote sp, Tuple2<Map<String, String>, String> res) async {
     // If the whole res is null, we cancelled.
     // If the first element in the tuple is null, we backed out
     // before the future was finished.
     if (res != null && res.item1 != null) {
       // await Future.delayed(Duration(milliseconds: 500));
-      Note newNote = await sp.note.saveContents(widget.helper.getNotesFolder(), res.item1, res.item2);
+      Note newNote = await Note.saveContents(
+        res.item1,
+        res.item2,
+        filename: join(widget.helper.getNotesFolder(), sp.note.filename),
+      );
       setState(() {
         sp.note.updateNote(newNote);
       });
       _db.update(sp.note);
     }
+  }
+
+  _onNewNote(BuildContext context, String str) async {
+    Tuple2<Map<String, String>, String> res =
+        await Navigator.of(context).push(MorpheusPageRoute(
+            builder: (context) => NotePage(
+                  title: myController.text,
+                  titleTag: TextFieldHero,
+                ),
+            parentKey: _textFieldKey));
+
+    if (res != null && res.item1 != null) {
+      Note newNote = await Note.saveContents(
+        res.item1,
+        res.item2,
+        basename: widget.helper.getNotesFolder(),
+      );
+
+      _db.insert(newNote);
+
+      snInvalid = true;
+      _buildFuse(fuse.list..insert(0, newNote));
+
+      setState(() {
+        _searchNotes.insert(0, newNote);
+      });
+    }
+  }
+
+  _buildFuse(List<Note> data) {
+    fuse = Fuzzy(
+      data,
+      options: FuzzyOptions(
+        keys: [
+          WeightedKey(
+              name: "titleOrFilename",
+              getter: (x) => x.titleOrFilename(),
+              weight: 1.0),
+          WeightedKey(name: "summary", getter: (x) => x.summary, weight: 0.0),
+        ],
+      ),
+    );
   }
 
   @override
@@ -203,21 +265,12 @@ class _NovelPageState extends State<NovelPage> {
       future: _notes,
       builder: (BuildContext context, AsyncSnapshot<List<Note>> snapshot) {
         if (snapshot.hasData) {
-          fuse = Fuzzy(
-            snapshot.data,
-            options: FuzzyOptions(
-              keys: [
-                WeightedKey(
-                    name: "titleOrFilename",
-                    getter: (x) => x.titleOrFilename(),
-                    weight: 1.0),
-                WeightedKey(
-                    name: "summary", getter: (x) => x.summary, weight: 0.0),
-              ],
-            ),
-          );
-          if (_searchNotes == null) {
-            _searchNotes = snapshot.data;
+          if (snInvalid) {
+            _buildFuse(snapshot.data);
+
+            final res = fuse.search(myController.text);
+            _searchNotes = res.map((r) => r.item).toList();
+            snInvalid = false;
           }
 
           return Container(
@@ -228,19 +281,7 @@ class _NovelPageState extends State<NovelPage> {
                       alignment: Alignment.topLeft,
                       child: RefreshIndicator(
                           key: _refreshKey,
-                          onRefresh: () {
-                            // TODO: This doesn't work correctly since we're updating
-                            // _notes but not _searchNotes
-                            //
-                            // We have to implement refreshing such that it updates
-                            // _searchNotes, taking into account the current search term
-
-                            setState(() {
-                              _notes = _db.sync(widget.helper.getNotesFolder());
-                            });
-
-                            return _notes;
-                          },
+                          onRefresh: _refresh,
                           child: ListView.builder(
                               physics: const AlwaysScrollableScrollPhysics(),
                               itemCount: _searchNotes.length,
@@ -253,38 +294,40 @@ class _NovelPageState extends State<NovelPage> {
                                     onTap: _onSparseNoteTap);
                               }))),
                   Align(
-                      alignment: Alignment.bottomLeft,
+                    alignment: Alignment.bottomLeft,
+                    child: Material(
+                      key: _textFieldKey,
                       child: Container(
-                        decoration: BoxDecoration(
-                            color: Colors.grey[50],
-                            boxShadow: [
-                              BoxShadow(
-                                  color: Colors.black12,
-                                  blurRadius: 1,
-                                  offset: Offset(0, -2))
-                            ]),
-                        child: TextFormField(
-                          key: _textFieldKey,
-                          controller: myController,
-                          decoration: InputDecoration(
-                            hintText: "ramble",
-                            contentPadding: EdgeInsets.only(
-                                bottom: 16, top: 16, left: 20, right: 20),
-                            border: InputBorder.none,
-                          ),
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 28,
-                          ),
-                          onFieldSubmitted: (String str) {
-                            print("Submitted $str");
-                            Navigator.of(context).push(MorpheusPageRoute(
-                                builder: (context) => Scaffold(),
-                                parentKey: _textFieldKey));
-                          },
-                          autofocus: false,
-                        ),
-                      )),
+                          decoration: BoxDecoration(
+                              color: Colors.white,
+                              boxShadow: [
+                                BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 1,
+                                    offset: Offset(0, -2))
+                              ]),
+                          child: Hero(
+                            tag: TextFieldHero,
+                            child: TextFormField(
+                              controller: myController,
+                              decoration: InputDecoration(
+                                hintText: "ramble",
+                                contentPadding: EdgeInsets.only(
+                                    bottom: 16, top: 16, left: 20, right: 20),
+                                border: InputBorder.none,
+                              ),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 28,
+                              ),
+                              onFieldSubmitted: (String str) {
+                                _onNewNote(context, str);
+                              },
+                              autofocus: false,
+                            ),
+                          )),
+                    ),
+                  ),
                 ],
               ));
         } else {

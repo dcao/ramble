@@ -36,6 +36,8 @@ dependencies:
 
   fuzzy: <1.0.0
 
+  slugify: ^1.0.0
+
   declarative_animated_list: ^0.0.2
 
   morpheus:

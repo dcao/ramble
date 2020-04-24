@@ -41,6 +41,7 @@ class Parser {
 
     // We return a note.
     note.summary ??= "Empty note";
+    note.modified = DateTime.now();
     return note;
   }
 

@@ -131,13 +131,11 @@ class GeneralSettings extends StatefulWidget {
 
 class _GeneralSettingsState extends State<GeneralSettings> {
   String _screen;
-  String _format;
   String _notesFolder;
 
   @override
   Widget build(BuildContext context) {
     _screen = widget.helper.getDefaultScreen();
-    _format = widget.helper.getFileFormat();
     _notesFolder = widget.helper.getNotesFolder();
 
     return ListView(
@@ -151,16 +149,6 @@ class _GeneralSettingsState extends State<GeneralSettings> {
             _screenChoice(context);
           },
           subtitle: Text(_screen),
-        ),
-        ListTile(
-          contentPadding: EdgeInsets.only(left: 57.0),
-          title: Text(
-            "Note file format",
-          ),
-          subtitle: Text(_format),
-          onTap: () {
-            _fileFormat(context);
-          },
         ),
         ListTile(
           enabled: Platform.isAndroid,
@@ -225,47 +213,6 @@ class _GeneralSettingsState extends State<GeneralSettings> {
       return null;
     }
   }
-
-  Future<void> _fileFormat(BuildContext context) async {
-    String format = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      // dialog is dismissible with a tap on the barrier
-      builder: (BuildContext context) {
-        String f = widget.helper.getFileFormat();
-        return AlertDialog(
-          title: Text('Note file format'),
-          content: new Row(
-            children: <Widget>[
-              new Expanded(
-                  child: new TextFormField(
-                autofocus: true,
-                initialValue: f,
-                onChanged: (value) {
-                  f = value;
-                },
-                decoration:
-                    InputDecoration(hintText: PrefsHelper.DefaultFileFormat),
-              ))
-            ],
-          ),
-          actions: <Widget>[
-            FlatButton(
-              child: Text('OK'),
-              onPressed: () {
-                Navigator.of(context).pop(f);
-              },
-            ),
-          ],
-        );
-      },
-    );
-
-    await widget.helper.setFileFormat(format);
-    setState(() {
-      _format = format;
-    });
-  }
 }
 
 enum Screen { Remember, Note, Capture }
@@ -300,7 +247,6 @@ class PrefsHelper {
   PrefsHelper();
 
   static const String DefaultDefaultScreen = 'Note';
-  static const String DefaultFileFormat = 'yyyyMMddhhmmss_%s.org';
 
   static String defaultNotesFolder;
 
@@ -327,14 +273,6 @@ class PrefsHelper {
 
   Future<bool> setDefaultScreen(Screen value) async {
     return prefs.setString("default_screen", describeEnum(value));
-  }
-
-  String getFileFormat() {
-    return prefs.getString("notes_file_format") ?? DefaultFileFormat;
-  }
-
-  Future<bool> setFileFormat(String value) async {
-    return prefs.setString("notes_file_format", value);
   }
 
   String getNotesFolder() {

@@ -23,7 +23,6 @@ class NotePage extends StatefulWidget {
 class _NotePageState extends State<NotePage>
     with SingleTickerProviderStateMixin {
   final pf = PrefsHelper();
-  final _controller = TextEditingController();
   Future<void> nd;
 
   AnimationController _ac;
@@ -31,6 +30,9 @@ class _NotePageState extends State<NotePage>
   Animation<Offset> _appBarAnim;
   Animation<double> _fabAnim;
   Animation<double> _tfOpacityAnim;
+
+  final _bodyTC = TextEditingController();
+  final _titleTC = TextEditingController();
 
   Map<String, String> noteProps;
 
@@ -77,6 +79,8 @@ class _NotePageState extends State<NotePage>
       curve: Interval(0.65, 1.0, curve: Curves.easeOut),
     ));
 
+    _titleTC.text = widget.title;
+
     nd = _noteData();
   }
 
@@ -88,11 +92,15 @@ class _NotePageState extends State<NotePage>
     Tuple2<Map<String, String>, String> res =
         await widget.note?.getContents(pf.getNotesFolder());
 
-    noteProps = res.item1;
+    if (widget.note != null) {
+      noteProps = res.item1;
+      _bodyTC.text = res.item2;
+    } else {
+      noteProps = Map();
+      noteProps["title"] = widget.title;
+    }
 
     _ac.forward(from: 0.0);
-
-    _controller.text = res.item2;
 
     return null;
   }
@@ -106,7 +114,7 @@ class _NotePageState extends State<NotePage>
   @override
   void dispose() {
     _ac.dispose();
-    _controller.dispose();
+    _bodyTC.dispose();
     super.dispose();
   }
 
@@ -119,7 +127,8 @@ class _NotePageState extends State<NotePage>
         iconSize: 20.0,
         padding: EdgeInsets.only(bottom: 4.0),
         icon: Icon(Icons.clear, color: Colors.black54),
-        onPressed: () {
+        onPressed: () async {
+          await _pop();
           Navigator.pop(context);
         },
       ),
@@ -141,9 +150,10 @@ class _NotePageState extends State<NotePage>
             scale: _fabAnim,
             child: FloatingActionButton(
               child: const Icon(Icons.done),
-              onPressed: () {
-                var contents = _controller.text;
-                Navigator.of(context).pop(Tuple2(noteProps, contents));
+              onPressed: () async {
+                noteProps["title"] = _titleTC.text;
+                await _pop();
+                Navigator.of(context).pop(Tuple2(noteProps, _bodyTC.text));
               },
             ),
           ),
@@ -176,10 +186,20 @@ class _NotePageState extends State<NotePage>
                     children: [
                       Hero(
                           tag: widget.titleTag,
-                          child: SharedText(widget.title,
-                              smallFontSize: 16.0,
-                              largeFontSize: 28.0,
-                              viewState: ViewState.enlarged)),
+                          child: TextFormField(
+                            controller: _titleTC,
+                            keyboardType: TextInputType.multiline,
+                            maxLines: null,
+                            style: TextStyle(
+                              fontSize: 28.0,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            decoration: InputDecoration(
+                              contentPadding: EdgeInsets.zero,
+                              border: InputBorder.none,
+                              hintText: "Title",
+                            ),
+                          )),
                       SizedBox(height: 4.0),
                       FadeTransition(
                           opacity: _tfOpacityAnim,
@@ -196,11 +216,11 @@ class _NotePageState extends State<NotePage>
                       FadeTransition(
                         opacity: _tfOpacityAnim,
                         child: TextFormField(
-                          controller: _controller,
+                          controller: _bodyTC,
                           keyboardType: TextInputType.multiline,
                           decoration: InputDecoration(
                             border: InputBorder.none,
-                            hintText: "Write something...",
+                            hintText: "Write something",
                           ),
                           maxLines: null,
                         ),

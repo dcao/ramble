@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:intl/intl.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:slugify/slugify.dart';
 import 'package:tuple/tuple.dart';
 
 import 'parse.dart';
@@ -71,29 +73,38 @@ class Note {
       if (l.startsWith("#+title")) {
         m["title"] = Parser.parseProp("title", line);
       } else if (line.isNotEmpty || !emptySkip) {
-          sss = sss + "$line\n";
-          emptySkip = false;
+        sss = sss + "$line\n";
+        emptySkip = false;
       }
     }).asFuture();
 
     return Tuple2(m, sss);
   }
 
-  Future<Note> saveContents(
-      String basePath, Map<String, String> noteProps, String txt) async {
-    if (noteProps != null) {
+  static String fileFromTitle(DateTime creation, String title) {
+    return '${DateFormat("yyyyMMddHHmmss").format(creation)}_${Slugify(title, delimiter: '_')}.org';
+  }
+
+  static Future<Note> saveContents(
+      Map<String, String> noteProps, String txt, {String filename, String basename}) async {
+    if (noteProps != null && (filename != null || basename != null)) {
       var s = "";
 
       noteProps.forEach((key, value) {
         s += "#+$key: $value\n";
       });
 
-      s += txt;
+      s += "\n" + txt;
 
-      final f = File(join(basePath, filename));
+      if (filename == null && basename != null) {
+        filename = join(basename, fileFromTitle(DateTime.now(), noteProps["title"]));
+      }
+      final f = File(filename);
       await f.writeAsString(s);
 
       Note newNote = Parser.parseNoteText(s);
+
+      newNote.filename = filename;
 
       return newNote;
     } else {
