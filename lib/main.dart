@@ -15,6 +15,8 @@ import 'package:ramble/note.dart';
 import 'package:flutter/scheduler.dart' show timeDilation;
 import 'package:tuple/tuple.dart';
 
+import 'components/shared_text.dart';
+
 void main() {
   timeDilation = 1.0;
 
@@ -58,6 +60,7 @@ class _HomePageState extends State<HomePage> {
               length: myTabs.length,
               initialIndex: snapshot.data.getDefaultScreenAsInt(),
               child: Scaffold(
+                resizeToAvoidBottomPadding: false,
                 appBar: AppBar(
                   // backgroundColor: Colors.white,
                   elevation: 0,
@@ -158,6 +161,9 @@ class _NovelPageState extends State<NovelPage> {
 
   bool snInvalid = true;
 
+  double dy = 0.0;
+  bool kbh = false;
+
   @override
   void initState() {
     super.initState();
@@ -218,29 +224,40 @@ class _NovelPageState extends State<NovelPage> {
   }
 
   _onNewNote(BuildContext context, String str) async {
-    Tuple2<Map<String, String>, String> res =
-        await Navigator.of(context).push(MorpheusPageRoute(
-            builder: (context) => NotePage(
-                  title: myController.text,
-                  titleTag: TextFieldHero,
-                ),
-            parentKey: _textFieldKey));
+    if (str.isNotEmpty) {
+      kbh = true;
 
-    if (res != null && res.item1 != null) {
-      Note newNote = await Note.saveContents(
-        res.item1,
-        res.item2,
-        basename: widget.helper.getNotesFolder(),
-      );
-
-      _db.insert(newNote);
-
-      snInvalid = true;
-      _buildFuse(fuse.list..insert(0, newNote));
+      final res = await Navigator.of(context).push(MorpheusPageRoute(
+        transitionToChild: false,
+        transitionDuration: Duration(milliseconds: 500),
+        builder: (context) => NotePage(
+          title: myController.text,
+          titleTag: TextFieldHero,
+        ),
+        parentKey: _textFieldKey,
+      ));
 
       setState(() {
-        _searchNotes.insert(0, newNote);
+        kbh = false;
+        dy = 0;
       });
+
+      if (res != null && res.item1 != null) {
+        Note newNote = await Note.saveContents(
+          res.item1,
+          res.item2,
+          basename: widget.helper.getNotesFolder(),
+        );
+
+        _db.insert(newNote);
+
+        snInvalid = true;
+        _buildFuse(fuse.list..insert(0, newNote));
+
+        setState(() {
+          _searchNotes.insert(0, newNote);
+        });
+      }
     }
   }
 
@@ -273,6 +290,10 @@ class _NovelPageState extends State<NovelPage> {
             snInvalid = false;
           }
 
+          if (!kbh) {
+            dy = MediaQuery.of(this.context).viewInsets.bottom;
+          }
+
           return Container(
               padding: EdgeInsets.only(top: 16),
               child: Stack(
@@ -293,39 +314,61 @@ class _NovelPageState extends State<NovelPage> {
                                     titleKey: index,
                                     onTap: _onSparseNoteTap);
                               }))),
-                  Align(
-                    alignment: Alignment.bottomLeft,
+                  Positioned(
+                    bottom: dy,
+                    left: 0.0,
+                    right: 0.0,
                     child: Material(
-                      key: _textFieldKey,
                       child: Container(
-                          decoration: BoxDecoration(
-                              color: Colors.white,
-                              boxShadow: [
-                                BoxShadow(
-                                    color: Colors.black12,
-                                    blurRadius: 1,
-                                    offset: Offset(0, -2))
-                              ]),
-                          child: Hero(
-                            tag: TextFieldHero,
-                            child: TextFormField(
-                              controller: myController,
-                              decoration: InputDecoration(
-                                hintText: "ramble",
-                                contentPadding: EdgeInsets.only(
-                                    bottom: 16, top: 16, left: 20, right: 20),
-                                border: InputBorder.none,
-                              ),
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 28,
-                              ),
-                              onFieldSubmitted: (String str) {
-                                _onNewNote(context, str);
-                              },
-                              autofocus: false,
+                        key: _textFieldKey,
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 1,
+                                  offset: Offset(0, -2))
+                            ]),
+                        padding: EdgeInsets.only(
+                            bottom: 16, top: 16, left: 20, right: 20),
+                        child: Hero(
+                          flightShuttleBuilder: (
+                            BuildContext flightContext,
+                            Animation<double> animation,
+                            HeroFlightDirection flightDirection,
+                            BuildContext fromHeroContext,
+                            BuildContext toHeroContext,
+                          ) {
+                            return SharedText(
+                              myController.text,
+                              isOverflow: true,
+                              viewState:
+                                  flightDirection == HeroFlightDirection.push
+                                      ? ViewState.enlarge
+                                      : ViewState.shrink,
+                              smallFontSize: 28.0,
+                              largeFontSize: 28.0,
+                            );
+                          },
+                          tag: TextFieldHero,
+                          child: TextFormField(
+                            controller: myController,
+                            decoration: InputDecoration(
+                              hintText: "ramble",
+                              contentPadding: EdgeInsets.zero,
+                              border: InputBorder.none,
                             ),
-                          )),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 28,
+                            ),
+                            onFieldSubmitted: (String str) {
+                              _onNewNote(context, str);
+                            },
+                            autofocus: false,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],

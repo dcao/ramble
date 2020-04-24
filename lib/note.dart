@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ramble/components/shared_text.dart';
+import 'package:ramble/components/constantly_notched_rectangle.dart';
+import 'package:ramble/components/docked_fab_position.dart';
 import 'package:ramble/settings.dart';
 import 'package:tuple/tuple.dart';
 
@@ -37,6 +38,8 @@ class _NotePageState extends State<NotePage>
   Map<String, String> noteProps;
 
   static final Duration xlen = Duration(milliseconds: 250);
+
+  final g = CorrectEndDockedFABLoc();
 
   @override
   void initState() {
@@ -137,7 +140,7 @@ class _NotePageState extends State<NotePage>
     return WillPopScope(
         onWillPop: _pop,
         child: Scaffold(
-          floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
+          floatingActionButtonLocation: g,
           backgroundColor: Colors.grey[50],
           appBar: PreferredSize(
             preferredSize: ab.preferredSize,
@@ -157,13 +160,13 @@ class _NotePageState extends State<NotePage>
               },
             ),
           ),
-          bottomNavigationBar: SlideTransition(
-              position: _bottomBarAnim,
-              child: Transform.translate(
-                offset:
-                    Offset(0.0, -1 * MediaQuery.of(context).viewInsets.bottom),
+          bottomNavigationBar: Transform.translate(
+              offset:
+                  Offset(0.0, -1 * MediaQuery.of(context).viewInsets.bottom),
+              child: SlideTransition(
+                position: _bottomBarAnim,
                 child: BottomAppBar(
-                  shape: CircularNotchedRectangle(),
+                  shape: ConstantlyNotchedRectangle(),
                   notchMargin: 8.0,
                   child: new Row(
                     mainAxisSize: MainAxisSize.max,

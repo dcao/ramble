@@ -87,7 +87,7 @@ class _SharedTextState extends State<SharedText>
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 400),
+      duration: Duration(milliseconds: 370),
     )..addListener(() {
         setState(() {
           fontSize = _fontSizeTween.value;
