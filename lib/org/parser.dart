@@ -98,11 +98,13 @@ class HeadingParser extends Parser {
       int level = m.group(1).length;
       List<InlineNode> title = pr.inlineParse(m.group(2));
 
-      // We then find the next heading with at the same level:
-      RegExpMatch nexm = RegExp("^${r"\*" * level} (.*)\$", multiLine: true)
-          .firstMatch(input.substring(m.end));
-      
-      String body = input.substring(m.end, nexm == null ? null : nexm.start);
+      // We then find the next heading with at the same or less level:
+      RegExpMatch nexm =
+          RegExp(r"^\*{1," + level.toString() + r"} (.*)\$", multiLine: true)
+              .firstMatch(input.substring(m.end));
+
+      String body =
+          input.substring(m.end, nexm == null ? null : m.end + nexm.start);
       List<Node> text = pr.parse(body);
 
       Heading node = Heading(level, title, text);
@@ -122,7 +124,7 @@ class IBSParser extends Parser {
     if (m != null) {
       // We match!
       String prop = m.group(1);
-      String val  = m.group(2);
+      String val = m.group(2);
 
       InBufferSetting node = InBufferSetting(prop, val);
 
@@ -141,7 +143,8 @@ class LinkParser extends InlineParser {
     if (m != null) {
       // We match!
       String href = m.group(1) == null ? m.group(2) : m.group(1);
-      List<InlineNode> text = m.group(1) == null ? null : pr.inlineParse(m.group(2));
+      List<InlineNode> text =
+          m.group(1) == null ? null : pr.inlineParse(m.group(2));
 
       Link node = Link(href, text);
 

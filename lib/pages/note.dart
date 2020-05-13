@@ -3,18 +3,24 @@ import 'package:intl/intl.dart';
 import 'package:ramble/components/constantly_notched_rectangle.dart';
 import 'package:ramble/components/docked_fab_position.dart';
 import 'package:ramble/components/org_text_controller.dart';
-import 'package:ramble/settings.dart';
+import 'package:ramble/pages/settings.dart';
 import 'package:tuple/tuple.dart';
 
-import 'backend/note.dart';
-import 'org/ast.dart';
+import '../backend/note.dart';
 
 class NotePage extends StatefulWidget {
   final Object titleTag;
   final String title;
   final Note note;
 
-  NotePage({Key key, @required this.title, @required this.titleTag, this.note})
+  final NoteProvider db;
+
+  NotePage(
+      {Key key,
+      @required this.title,
+      @required this.titleTag,
+      @required this.db,
+      this.note})
       : super(key: key);
 
   @override
@@ -96,6 +102,10 @@ class _NotePageState extends State<NotePage>
 
     Tuple2<Map<String, String>, String> res =
         await widget.note?.getContents(pf.getNotesFolder());
+
+    List<Note> backlinks = await widget.db.findBacklinks(widget.note.id);
+
+    print(backlinks);
 
     if (widget.note != null) {
       noteProps = res.item1;

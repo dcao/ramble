@@ -3,15 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:ramble/backend/note.dart';
 import 'package:ramble/components/shared_text.dart';
-import 'package:ramble/note.dart';
+import 'package:ramble/pages/note.dart';
 
 class SparseNote extends StatelessWidget {
   final Object titleKey;
   final Note note;
   final Function onTap;
+  final NoteProvider db;
 
   SparseNote(
-      {Key key, @required this.note, @required this.titleKey, this.onTap})
+      {Key key,
+      @required this.note,
+      @required this.titleKey,
+      @required this.db,
+      this.onTap})
       : super(key: key);
 
   @override
@@ -31,6 +36,7 @@ class SparseNote extends StatelessWidget {
               title: note.titleOrFilename(),
               titleTag: titleKey,
               note: note,
+              db: this.db,
             );
           },
           closedBuilder: (context, action) {

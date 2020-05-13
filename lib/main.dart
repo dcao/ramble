@@ -7,10 +7,10 @@ import 'package:path/path.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:ramble/backend/note.dart';
 import 'package:ramble/components/sparse_note.dart';
-import 'package:ramble/settings.dart';
+import 'package:ramble/pages/settings.dart';
 import 'package:ramble/themes.dart';
 import 'package:ramble/components/circle_tab_indicator.dart';
-import 'package:ramble/note.dart';
+import 'package:ramble/pages/note.dart';
 
 import 'package:flutter/scheduler.dart' show timeDilation;
 import 'package:tuple/tuple.dart';
@@ -233,6 +233,7 @@ class _NovelPageState extends State<NovelPage> {
         builder: (context) => NotePage(
           title: myController.text,
           titleTag: TextFieldHero,
+          db: _db,
         ),
         parentKey: _textFieldKey,
       ));
@@ -263,7 +264,7 @@ class _NovelPageState extends State<NovelPage> {
 
   _buildFuse(List<Note> data) {
     fuse = Fuzzy(
-      data,
+      data..sort((a, b) => b.modified.compareTo(a.modified)),
       options: FuzzyOptions(
         keys: [
           WeightedKey(
@@ -310,9 +311,11 @@ class _NovelPageState extends State<NovelPage> {
                                 final note = _searchNotes[index];
 
                                 return SparseNote(
-                                    note: note,
-                                    titleKey: index,
-                                    onTap: _onSparseNoteTap);
+                                  note: note,
+                                  titleKey: index,
+                                  onTap: _onSparseNoteTap,
+                                  db: _db,
+                                );
                               }))),
                   Positioned(
                     bottom: dy,

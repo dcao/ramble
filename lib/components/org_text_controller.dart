@@ -53,7 +53,6 @@ class OrgRenderer extends NodeVisitor {
   void visitHeading(Heading heading) {
     TextStyle old = style;
     style = style.copyWith(
-      fontSize: 18,
       fontWeight: FontWeight.w600,
       color: Colors.black87,
     );

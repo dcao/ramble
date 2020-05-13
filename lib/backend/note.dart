@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:ramble/org/ast.dart';
+import 'package:ramble/org/parser.dart' hide Parser;
 import 'package:slugify/slugify.dart';
 import 'package:tuple/tuple.dart';
 
@@ -19,12 +21,30 @@ final String columnFilename = 'filename';
 final String columnSummary = 'summary';
 final String columnModified = 'modified';
 
+final String tableLink = 'link';
+final String columnFrom = 'linkFrom';
+final String columnTo = 'linkTo';
+
 class Note {
   int id;
   String title;
   String filename;
   String summary;
   DateTime modified;
+  List<String> hrefs;
+
+  Future<void> genHrefs(String basePath) async {
+    String txt = await File(join(basePath, filename)).readAsString();
+    ParserRunner pr = ParserRunner();
+    LinkVisitor lv = LinkVisitor();
+    Root r = pr.parseRoot(txt);
+
+    r.accept(lv);
+
+    this.hrefs = lv.hrefs;
+
+    return null;
+  }
 
   Map<String, dynamic> toMap() {
     var map = <String, dynamic>{
@@ -55,6 +75,7 @@ class Note {
     modified = DateTime.fromMillisecondsSinceEpoch(map[columnModified]);
   }
 
+  // TODO: Use AST Visitor?
   Future<Tuple2<Map<String, String>, String>> getContents(
       String basePath) async {
     String sss = "";
@@ -85,8 +106,8 @@ class Note {
     return '${DateFormat("yyyyMMddHHmmss").format(creation)}_${Slugify(title, delimiter: '_')}.org';
   }
 
-  static Future<Note> saveContents(
-      Map<String, String> noteProps, String txt, {String filename, String basename}) async {
+  static Future<Note> saveContents(Map<String, String> noteProps, String txt,
+      {String filename, String basename}) async {
     if (noteProps != null && (filename != null || basename != null)) {
       var s = "";
 
@@ -97,7 +118,8 @@ class Note {
       s += "\n" + txt;
 
       if (filename == null && basename != null) {
-        filename = join(basename, fileFromTitle(DateTime.now(), noteProps["title"]));
+        filename =
+            join(basename, fileFromTitle(DateTime.now(), noteProps["title"]));
       }
       final f = File(filename);
       await f.writeAsString(s);
@@ -105,6 +127,12 @@ class Note {
       Note newNote = Parser.parseNoteText(s);
 
       newNote.filename = filename;
+
+      ParserRunner pr = ParserRunner();
+      LinkVisitor lv = LinkVisitor();
+      pr.parseRoot(txt).accept(lv);
+
+      newNote.hrefs = lv.hrefs;
 
       return newNote;
     } else {
@@ -117,15 +145,21 @@ class Note {
     title = newNote.title;
     summary = newNote.summary;
     modified = DateTime.now();
+    hrefs = newNote.hrefs;
   }
 }
 
 class NoteProvider {
   Database db;
 
+  _onConfigure(Database db) async {
+    await db.execute("PRAGMA foreign_keys = ON");
+  }
+
   Future<void> open(String name) async {
-    db = await openDatabase(p.join(await getDatabasesPath(), name), version: 1,
-        onCreate: (Database db, int version) async {
+    db = await openDatabase(p.join(await getDatabasesPath(), name),
+        onConfigure: _onConfigure,
+        version: 1, onCreate: (Database db, int version) async {
       await db.execute('''
 create table $tableNote ( 
   $columnId integer primary key autoincrement, 
@@ -133,6 +167,14 @@ create table $tableNote (
   $columnFilename text not null,
   $columnSummary text,
   $columnModified integer not null)
+''');
+      await db.execute('''
+create table $tableLink ( 
+  $columnId integer primary key autoincrement, 
+  $columnFrom integer not null,
+  $columnTo integer not null,
+  foreign key ($columnFrom) references $tableNote ($columnId) on delete cascade,
+  foreign key ($columnTo) references $tableNote ($columnId) on delete cascade)
 ''');
     });
   }
@@ -148,8 +190,17 @@ create table $tableNote (
       await deleteAll();
       List<Note> notes = await Parser.parseDir(path);
 
+      // When syncing, we have to go in two passes:
+      // First, we add all the notes in.
+      // Then, we can add the links by going thru the notes again.
+
       for (Note note in notes) {
-        insert(note);
+        await insert(note);
+      }
+
+      for (Note note in notes) {
+        await note.genHrefs(path);
+        await insertHrefs(note);
       }
 
       return notes;
@@ -160,13 +211,16 @@ create table $tableNote (
 
   Future<List<Note>> openAndSync(String path) async {
     await open(
-        p.join((await getApplicationSupportDirectory()).path, "sqlite.db"));
+        p.join((await getApplicationSupportDirectory()).path, "asdasd.db"));
     return sync(path);
   }
 
   Future<Note> insert(Note note) async {
     note?.id = await db.insert(tableNote, note?.toMap(),
         conflictAlgorithm: ConflictAlgorithm.replace);
+    if (note.hrefs != null) {
+      insertHrefs(note);
+    }
     return note;
   }
 
@@ -205,22 +259,77 @@ create table $tableNote (
     return null;
   }
 
+  Future<int> getNoteIdByFilename(String filename) async {
+    List<Map> maps = await db.query(tableNote,
+        columns: [
+          columnId,
+        ],
+        where: '$columnFilename = ?',
+        whereArgs: [filename]);
+
+    if (maps.length > 0) {
+      return maps.first[columnId];
+    }
+
+    return null;
+  }
+
   Future<int> delete(int id) async {
     return await db.delete(tableNote, where: '$columnId = ?', whereArgs: [id]);
   }
 
   Future deleteAll() async {
     await db.delete(tableNote);
+    await db.delete(tableLink);
   }
 
   Future<int> update(Note todo) async {
-    return await db.update(tableNote, todo.toMap(),
+    int res = await db.update(tableNote, todo.toMap(),
         where: '$columnId = ?', whereArgs: [todo.id]);
+
+    if (todo.hrefs != null) {
+      await deleteFroms(todo);
+      await insertHrefs(todo);
+    }
+
+    return res;
   }
 
   Future<int> updateByFilename(Note todo) async {
     return await db.update(tableNote, todo.toMap(),
         where: '$columnFilename = ?', whereArgs: [todo.filename]);
+  }
+
+  Future insertHrefs(Note n) async {
+    for (String href in n.hrefs) {
+      // Get rid of the file: prefix
+      href = href.substring(5);
+
+      // Then find the note id by filename
+      int id = await getNoteIdByFilename(href);
+
+      if (id != null) {
+        await addLink(n.id, id);
+      }
+    }
+
+    return null;
+  }
+
+  Future deleteFroms(Note n) async {
+    await db.delete(tableLink, where: "$columnId = ?", whereArgs: [n.id]);
+  }
+
+  Future<int> addLink(int from, int to) async {
+    return await db.insert(tableLink, {columnFrom: from, columnTo: to});
+  }
+
+  Future<List<Note>> findBacklinks(int to) async {
+    List<Map<String, dynamic>> ls = await db.rawQuery('''
+select $tableNote.$columnId, $tableNote.$columnTitle, $tableNote.$columnFilename, $tableNote.$columnModified, $tableNote.$columnSummary
+from $tableLink inner join $tableNote on $tableNote.$columnId = $tableLink.$columnFrom where $tableLink.$columnTo = $to
+''');
+    return ls.map((e) => Note.fromMap(e)).toList();
   }
 
   Future close() async => db.close();
