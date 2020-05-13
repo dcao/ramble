@@ -48,6 +48,16 @@ class Link extends InlineNode {
   }
 }
 
+class Verbatim extends InlineNode {
+  String text;
+
+  Verbatim(this.text);
+
+  void accept(NodeVisitor visitor) {
+    visitor.visitVerbatim(this);
+  }
+}
+
 class PlainText extends InlineNode {
   String text;
 
@@ -68,6 +78,7 @@ class PlainText extends InlineNode {
 abstract class NodeVisitor {
   void visitRoot(Root text);
   void visitText(PlainText text);
+  void visitVerbatim(Verbatim text);
   void visitLink(Link link);
   void visitHeading(Heading heading);
   void visitIBS(InBufferSetting ibs);
@@ -82,6 +93,10 @@ class DebugPrinter extends NodeVisitor {
 
   void visitText(PlainText text) {
     print("PlainText: ${text.text}");
+  }
+
+  void visitVerbatim(Verbatim text) {
+    print("Verbatim: ${text.text}");
   }
 
   void visitLink(Link link) {

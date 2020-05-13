@@ -7,6 +7,7 @@ class ParserRunner {
     HeadingParser(),
     IBSParser(),
     LinkParser(),
+    VerbatimParser(),
   ];
 
   // We have to handle Inline and BlockParsers differently when parsing, so we
@@ -143,6 +144,22 @@ class LinkParser extends InlineParser {
       List<InlineNode> text = m.group(1) == null ? null : pr.inlineParse(m.group(2));
 
       Link node = Link(href, text);
+
+      return Tuple2(node, m.group(0).length);
+    } else {
+      return null;
+    }
+  }
+}
+
+class VerbatimParser extends InlineParser {
+  Tuple2<InlineNode, int> tryParse(ParserRunner pr, String input) {
+    RegExp exp = RegExp(r"=(?=[^\s])(.*?)(?<=[^\s])=");
+    RegExpMatch m = exp.matchAsPrefix(input);
+
+    if (m != null) {
+      // We match!
+      Verbatim node = Verbatim(m.group(1));
 
       return Tuple2(node, m.group(0).length);
     } else {
