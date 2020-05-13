@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ramble/components/constantly_notched_rectangle.dart';
 import 'package:ramble/components/docked_fab_position.dart';
+import 'package:ramble/components/org_text_controller.dart';
 import 'package:ramble/settings.dart';
 import 'package:tuple/tuple.dart';
 
 import 'backend/note.dart';
+import 'org/ast.dart';
 
 class NotePage extends StatefulWidget {
   final Object titleTag;
@@ -32,7 +34,7 @@ class _NotePageState extends State<NotePage>
   Animation<double> _fabAnim;
   Animation<double> _tfOpacityAnim;
 
-  final _bodyTC = TextEditingController();
+  final _bodyTC = OrgTextController();
   final _titleTC = TextEditingController();
 
   Map<String, String> noteProps;
@@ -221,6 +223,9 @@ class _NotePageState extends State<NotePage>
                         child: TextFormField(
                           controller: _bodyTC,
                           keyboardType: TextInputType.multiline,
+                          style: TextStyle(
+                            color: Colors.grey[800],
+                          ),
                           decoration: InputDecoration(
                             border: InputBorder.none,
                             hintText: "Write something",
