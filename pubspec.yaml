@@ -20,6 +20,13 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # TODO: we temporarily depend on a fork so we can get an onClosed callback for
+  # OpenContainer
+  animations:
+    git:
+      url: git://github.com/Melvin-Abraham/packages.git
+      path: packages/animations
+
   camera: ^0.5.7
 
   path_provider: ^1.6.7
