@@ -143,7 +143,7 @@ class IBSParser extends Parser {
 
 class LinkParser extends InlineParser {
   InlineNode tryParse(ParserRunner pr, String input, int startIx) {
-    RegExp exp = RegExp(r"\[(?:\[(.*)\])?\[(.*)\]\]");
+    RegExp exp = RegExp(r"\[(?:\[(.*?)\])?\[(.*?)\]\]");
     RegExpMatch m = exp.matchAsPrefix(input);
 
     if (m != null) {
