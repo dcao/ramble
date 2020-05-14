@@ -1,13 +1,20 @@
 abstract class Node {
+  int start; // Inclusive
+  int end; // Exclusive
+
+  Node(this.start, this.end);
+
   void accept(NodeVisitor visitor);
 }
 
-abstract class InlineNode extends Node {}
+abstract class InlineNode extends Node {
+  InlineNode(int start, int end) : super(start, end);
+}
 
 class Root extends Node {
   List<Node> children;
 
-  Root(this.children);
+  Root(this.children, int start, int end) : super(start, end);
 
   void accept(NodeVisitor visitor) {
     visitor.visitRoot(this);
@@ -19,7 +26,7 @@ class Heading extends Node {
   List<InlineNode> title;
   List<Node> text;
 
-  Heading(this.level, this.title, this.text);
+  Heading(this.level, this.title, this.text, int start, int end) : super(start, end);
 
   void accept(NodeVisitor visitor) {
     visitor.visitHeading(this);
@@ -30,7 +37,7 @@ class InBufferSetting extends Node {
   String setting;
   String value;
 
-  InBufferSetting(this.setting, this.value);
+  InBufferSetting(this.setting, this.value, int start, int end) : super(start, end);
 
   void accept(NodeVisitor visitor) {
     visitor.visitIBS(this);
@@ -41,7 +48,7 @@ class Link extends InlineNode {
   String href;
   List<InlineNode> text;
 
-  Link(this.href, [this.text]);
+  Link(this.href, int start, int end, {this.text}) : super(start, end);
 
   void accept(NodeVisitor visitor) {
     visitor.visitLink(this);
@@ -51,7 +58,7 @@ class Link extends InlineNode {
 class Verbatim extends InlineNode {
   String text;
 
-  Verbatim(this.text);
+  Verbatim(this.text, int start, int end) : super(start, end);
 
   void accept(NodeVisitor visitor) {
     visitor.visitVerbatim(this);
@@ -61,10 +68,11 @@ class Verbatim extends InlineNode {
 class PlainText extends InlineNode {
   String text;
 
-  PlainText(this.text);
+  PlainText(this.text, int start, int end) : super(start, end);
 
   void append(String x) {
     this.text += x;
+    this.end++;
   }
 
   void accept(NodeVisitor visitor) {

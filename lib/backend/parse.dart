@@ -1,6 +1,5 @@
 import 'package:path/path.dart';
 import 'package:ramble/org/ast.dart';
-import 'package:ramble/org/parser.dart';
 
 import 'note.dart';
 import 'dart:io';
@@ -29,7 +28,9 @@ class Parser {
 
     try {
       String str = await file.readAsString();
-      return parseNoteText(str, filename: relative(file.path, from: base), modified: await file.lastModified());
+      return parseNoteText(str,
+          filename: relative(file.path, from: base),
+          modified: await file.lastModified());
     } on FileSystemException {
       // Can't parse this, return null.
       return null;
@@ -61,7 +62,6 @@ class Parser {
     return note;
   }
 
-
   static String parseProp(String prop, String txt) {
     int matchIx = txt.toLowerCase().indexOf('#+$prop: ');
 
@@ -76,8 +76,19 @@ class Parser {
   }
 }
 
+class LinkWithCtx {
+  String href;
+  String context;
+
+  LinkWithCtx(this.href, this.context);
+}
+
+
 class LinkVisitor extends NodeVisitor {
-  List<String> hrefs = [];
+  List<LinkWithCtx> hrefs = [];
+  String rootTxt;
+
+  LinkVisitor(this.rootTxt);
 
   void visitRoot(Root r) {
     for (Node n in r.children) {
@@ -91,7 +102,14 @@ class LinkVisitor extends NodeVisitor {
 
   void visitLink(Link link) {
     if (link.href.startsWith("file:")) {
-      hrefs.add(link.href);
+      // Our context is the containing line of the link.
+      int startIx = rootTxt.lastIndexOf('\n', link.start);
+      int endIx = rootTxt.indexOf('\n', link.end);
+
+      startIx = startIx == -1 ? 0 : startIx + 1;
+      endIx = endIx == -1 ? rootTxt.length : endIx;
+
+      hrefs.add(LinkWithCtx(link.href, rootTxt.substring(startIx, endIx)));
     }
   }
 

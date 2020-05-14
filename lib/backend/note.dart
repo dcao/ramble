@@ -24,6 +24,7 @@ final String columnModified = 'modified';
 final String tableLink = 'link';
 final String columnFrom = 'linkFrom';
 final String columnTo = 'linkTo';
+final String columnCtx = 'linkCtx';
 
 class Note {
   int id;
@@ -31,17 +32,22 @@ class Note {
   String filename;
   String summary;
   DateTime modified;
-  List<String> hrefs;
+  List<LinkWithCtx> hrefs;
 
-  Future<void> genHrefs(String basePath) async {
-    String txt = await File(join(basePath, filename)).readAsString();
+  void genHrefsFromTxt(String txt) {
     ParserRunner pr = ParserRunner();
-    LinkVisitor lv = LinkVisitor();
+    LinkVisitor lv = LinkVisitor(txt);
     Root r = pr.parseRoot(txt);
 
     r.accept(lv);
 
     this.hrefs = lv.hrefs;
+  }
+
+  Future<void> genHrefs(String basePath) async {
+    String txt = await File(join(basePath, filename)).readAsString();
+
+    genHrefsFromTxt(txt);
 
     return null;
   }
@@ -127,12 +133,7 @@ class Note {
       Note newNote = Parser.parseNoteText(s);
 
       newNote.filename = filename;
-
-      ParserRunner pr = ParserRunner();
-      LinkVisitor lv = LinkVisitor();
-      pr.parseRoot(txt).accept(lv);
-
-      newNote.hrefs = lv.hrefs;
+      newNote.genHrefsFromTxt(txt);
 
       return newNote;
     } else {
@@ -146,6 +147,11 @@ class Note {
     summary = newNote.summary;
     modified = DateTime.now();
     hrefs = newNote.hrefs;
+  }
+
+  @override
+  String toString() {
+    return "Note(filename: $filename, title: $title, summary: $summary)";
   }
 }
 
@@ -173,6 +179,7 @@ create table $tableLink (
   $columnId integer primary key autoincrement, 
   $columnFrom integer not null,
   $columnTo integer not null,
+  $columnCtx text not null,
   foreign key ($columnFrom) references $tableNote ($columnId) on delete cascade,
   foreign key ($columnTo) references $tableNote ($columnId) on delete cascade)
 ''');
@@ -211,7 +218,7 @@ create table $tableLink (
 
   Future<List<Note>> openAndSync(String path) async {
     await open(
-        p.join((await getApplicationSupportDirectory()).path, "asdasd.db"));
+        p.join((await getApplicationSupportDirectory()).path, "asdasddadad.db"));
     return sync(path);
   }
 
@@ -301,15 +308,15 @@ create table $tableLink (
   }
 
   Future insertHrefs(Note n) async {
-    for (String href in n.hrefs) {
+    for (LinkWithCtx l in n.hrefs) {
       // Get rid of the file: prefix
-      href = href.substring(5);
+      String href = l.href.substring(5);
 
       // Then find the note id by filename
       int id = await getNoteIdByFilename(href);
 
       if (id != null) {
-        await addLink(n.id, id);
+        await addLink(n.id, id, l.context);
       }
     }
 
@@ -320,13 +327,14 @@ create table $tableLink (
     await db.delete(tableLink, where: "$columnId = ?", whereArgs: [n.id]);
   }
 
-  Future<int> addLink(int from, int to) async {
-    return await db.insert(tableLink, {columnFrom: from, columnTo: to});
+  Future<int> addLink(int from, int to, String ctx) async {
+    return await db
+        .insert(tableLink, {columnFrom: from, columnTo: to, columnCtx: ctx});
   }
 
   Future<List<Note>> findBacklinks(int to) async {
     List<Map<String, dynamic>> ls = await db.rawQuery('''
-select $tableNote.$columnId, $tableNote.$columnTitle, $tableNote.$columnFilename, $tableNote.$columnModified, $tableNote.$columnSummary
+select $tableNote.$columnId, $tableNote.$columnTitle, $tableNote.$columnFilename, $tableNote.$columnModified, $tableLink.$columnCtx as $columnSummary
 from $tableLink inner join $tableNote on $tableNote.$columnId = $tableLink.$columnFrom where $tableLink.$columnTo = $to
 ''');
     return ls.map((e) => Note.fromMap(e)).toList();

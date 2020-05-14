@@ -173,7 +173,7 @@ class _NovelPageState extends State<NovelPage> {
   }
 
   _handlePerms() async {
-    print(await Permission.storage.request().isGranted);
+    // print(await Permission.storage.request().isGranted);
   }
 
   @override

@@ -1,12 +1,83 @@
+import 'package:expandable/expandable.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ramble/components/constantly_notched_rectangle.dart';
 import 'package:ramble/components/docked_fab_position.dart';
 import 'package:ramble/components/org_text_controller.dart';
+import 'package:ramble/components/sparse_note.dart';
 import 'package:ramble/pages/settings.dart';
 import 'package:tuple/tuple.dart';
 
 import '../backend/note.dart';
+
+class BacklinksChip extends StatelessWidget {
+  final List<Note> backlinks;
+  final NoteProvider db;
+
+  BacklinksChip(this.backlinks, this.db) : super();
+
+  // TODO: on sparse note tap
+
+  @override
+  Widget build(BuildContext context) {
+    if (backlinks.length > 0) {
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16.0),
+      ),
+      color: Colors.blueGrey[500],
+      margin: EdgeInsets.zero,
+      elevation: 10,
+      clipBehavior: Clip.antiAlias,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        ExpandablePanel(
+          theme: const ExpandableThemeData(
+            headerAlignment: ExpandablePanelHeaderAlignment.center,
+            tapBodyToExpand: true,
+            tapBodyToCollapse: true,
+            hasIcon: true,
+          ),
+          expanded: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: backlinks
+                .asMap()
+                .entries
+                .map((e) => SparseNote(
+                    note: e.value,
+                    titleKey: e.key,
+                    color: Colors.blueGrey[50],
+                    onTap: (_a, _b) {},
+                    db: db,
+                    maxLines: 2) as Widget) 
+                .toList()
+                ..add(SizedBox(height: 4)),
+          ),
+          header: Container(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      backlinks.length == 1 ? "1 backlink" : "${backlinks.length} backlinks",
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyText2
+                          .copyWith(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
+    } else {
+      return Container();
+    }
+  }
+}
 
 class NotePage extends StatefulWidget {
   final Object titleTag;
@@ -32,7 +103,7 @@ class NotePage extends StatefulWidget {
 class _NotePageState extends State<NotePage>
     with SingleTickerProviderStateMixin {
   final pf = PrefsHelper();
-  Future<void> nd;
+  Future<List<Note>> nd;
 
   AnimationController _ac;
   Animation<Offset> _bottomBarAnim;
@@ -95,7 +166,7 @@ class _NotePageState extends State<NotePage>
     nd = _noteData();
   }
 
-  Future<void> _noteData() async {
+  Future<List<Note>> _noteData() async {
     await Future.delayed(Duration(milliseconds: 330));
 
     await pf.init();
@@ -104,8 +175,6 @@ class _NotePageState extends State<NotePage>
         await widget.note?.getContents(pf.getNotesFolder());
 
     List<Note> backlinks = await widget.db.findBacklinks(widget.note.id);
-
-    print(backlinks);
 
     if (widget.note != null) {
       noteProps = res.item1;
@@ -117,7 +186,7 @@ class _NotePageState extends State<NotePage>
 
     _ac.forward(from: 0.0);
 
-    return null;
+    return backlinks;
   }
 
   Future<bool> _pop() async {
@@ -149,102 +218,113 @@ class _NotePageState extends State<NotePage>
       ),
     );
 
-    return WillPopScope(
-        onWillPop: _pop,
-        child: Scaffold(
-          floatingActionButtonLocation: g,
-          backgroundColor: Colors.grey[50],
-          appBar: PreferredSize(
-            preferredSize: ab.preferredSize,
-            child: SlideTransition(
-              position: _appBarAnim,
-              child: ab,
-            ),
-          ),
-          floatingActionButton: ScaleTransition(
-            scale: _fabAnim,
-            child: FloatingActionButton(
-              child: const Icon(Icons.done),
-              onPressed: () async {
-                noteProps["title"] = _titleTC.text;
-                await _pop();
-                Navigator.of(context).pop(Tuple2(noteProps, _bodyTC.text));
-              },
-            ),
-          ),
-          bottomNavigationBar: Transform.translate(
-              offset:
-                  Offset(0.0, -1 * MediaQuery.of(context).viewInsets.bottom),
-              child: SlideTransition(
-                position: _bottomBarAnim,
-                child: BottomAppBar(
-                  shape: ConstantlyNotchedRectangle(),
-                  notchMargin: 8.0,
-                  child: new Row(
-                    mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      IconButton(
-                        icon: Icon(Icons.link),
-                        onPressed: () {},
-                      ),
-                    ],
+    return FutureBuilder(
+        future: nd,
+        builder: (context, snapshot) {
+          return WillPopScope(
+              onWillPop: _pop,
+              child: Scaffold(
+                floatingActionButtonLocation: g,
+                backgroundColor: Colors.grey[50],
+                appBar: PreferredSize(
+                  preferredSize: ab.preferredSize,
+                  child: SlideTransition(
+                    position: _appBarAnim,
+                    child: ab,
                   ),
                 ),
-              )),
-          body: SingleChildScrollView(
-            child: Container(
-                padding: EdgeInsets.only(
-                    left: 20.0, right: 20.0, bottom: 16.0, top: 36.0),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Hero(
-                          tag: widget.titleTag,
-                          child: TextFormField(
-                            controller: _titleTC,
-                            keyboardType: TextInputType.multiline,
-                            maxLines: null,
-                            style: TextStyle(
-                              fontSize: 28.0,
-                              fontWeight: FontWeight.w700,
+                floatingActionButton: ScaleTransition(
+                  scale: _fabAnim,
+                  child: FloatingActionButton(
+                    child: const Icon(Icons.done),
+                    onPressed: () async {
+                      noteProps["title"] = _titleTC.text;
+                      await _pop();
+                      Navigator.of(context)
+                          .pop(Tuple2(noteProps, _bodyTC.text));
+                    },
+                  ),
+                ),
+                bottomNavigationBar: Transform.translate(
+                    offset: Offset(
+                        0.0, -1 * MediaQuery.of(context).viewInsets.bottom),
+                    child: SlideTransition(
+                      position: _bottomBarAnim,
+                      child: BottomAppBar(
+                        shape: ConstantlyNotchedRectangle(),
+                        notchMargin: 8.0,
+                        child: new Row(
+                          mainAxisSize: MainAxisSize.max,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            IconButton(
+                              icon: Icon(Icons.link),
+                              onPressed: () {},
                             ),
-                            decoration: InputDecoration(
-                              contentPadding: EdgeInsets.zero,
-                              border: InputBorder.none,
-                              hintText: "Title",
-                            ),
-                          )),
-                      SizedBox(height: 4.0),
-                      FadeTransition(
-                          opacity: _tfOpacityAnim,
-                          child: Text(
-                            "Last edited: " +
-                                (widget.note != null
-                                    ? DateFormat.yMMMd()
-                                        .add_jm()
-                                        .format(widget.note.modified)
-                                    : "right now"),
-                            style: TextStyle(color: Colors.grey[500]),
-                          )),
-                      SizedBox(height: 32.0),
-                      FadeTransition(
-                        opacity: _tfOpacityAnim,
-                        child: TextFormField(
-                          controller: _bodyTC,
-                          keyboardType: TextInputType.multiline,
-                          style: TextStyle(
-                            color: Colors.grey[800],
-                          ),
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            hintText: "Write something",
-                          ),
-                          maxLines: null,
+                          ],
                         ),
                       ),
-                    ])),
-          ),
-        ));
+                    )),
+                body: SingleChildScrollView(
+                  child: Container(
+                      padding: EdgeInsets.only(
+                          left: 20.0, right: 20.0, bottom: 16.0, top: 36.0),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Hero(
+                                tag: widget.titleTag,
+                                child: TextFormField(
+                                  controller: _titleTC,
+                                  keyboardType: TextInputType.multiline,
+                                  maxLines: null,
+                                  style: TextStyle(
+                                    fontSize: 28.0,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  decoration: InputDecoration(
+                                    contentPadding: EdgeInsets.zero,
+                                    border: InputBorder.none,
+                                    hintText: "Title",
+                                  ),
+                                )),
+                            SizedBox(height: 4.0),
+                            FadeTransition(
+                                opacity: _tfOpacityAnim,
+                                child: Text(
+                                  "Last edited: " +
+                                      (widget.note != null
+                                          ? DateFormat.yMMMd()
+                                              .add_jm()
+                                              .format(widget.note.modified)
+                                          : "right now"),
+                                  style: TextStyle(color: Colors.grey[500]),
+                                )),
+                            SizedBox(height: 20.0),
+                            FadeTransition(
+                                opacity: _tfOpacityAnim,
+                                child: snapshot.hasData
+                                    ? BacklinksChip(snapshot.data, widget.db)
+                                    : Container()),
+                            SizedBox(height: 24.0),
+                            FadeTransition(
+                              opacity: _tfOpacityAnim,
+                              child: TextFormField(
+                                controller: _bodyTC,
+                                keyboardType: TextInputType.multiline,
+                                style: TextStyle(
+                                  color: Colors.grey[800],
+                                ),
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: "Write something",
+                                ),
+                                maxLines: null,
+                              ),
+                            ),
+                          ])),
+                ),
+              ));
+        });
   }
 }

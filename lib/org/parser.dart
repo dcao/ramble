@@ -15,7 +15,7 @@ class ParserRunner {
   // at the start of the doc or after a newline. This prevents us from parsing
   // "[[lol][test]]* test" as a link followed by a heading (the correct parse
   // is link followed by text)
-  List<Node> parse(String input, {bool inlineOnly = false}) {
+  List<Node> parse(String input, {bool inlineOnly = false, int startIx = 0}) {
     List<Node> res = [];
     bool blockDisabled = false;
     PlainText defNode;
@@ -23,7 +23,7 @@ class ParserRunner {
     while (input.isNotEmpty) {
       for (Parser parser in parsers) {
         if (parser is InlineParser || (!inlineOnly && !blockDisabled)) {
-          Tuple2<Node, int> pres = parser.tryParse(this, input);
+          Node pres = parser.tryParse(this, input, startIx);
           if (pres != null) {
             // We first append our defNode if it exists
             if (defNode != null) {
@@ -36,8 +36,9 @@ class ParserRunner {
             }
 
             // We then advance our parser and add the node.
-            res.add(pres.item1);
-            input = input.substring(pres.item2);
+            res.add(pres);
+            input = input.substring(pres.end - pres.start);
+            startIx += pres.end - pres.start;
             continue;
           }
         }
@@ -51,13 +52,14 @@ class ParserRunner {
       }
 
       if (defNode == null) {
-        defNode = PlainText(input[0]);
+        defNode = PlainText(input[0], startIx, startIx + 1);
       } else {
         defNode.append(input[0]);
       }
 
       blockDisabled = input[0] != "\n";
       input = input.substring(1);
+      startIx++;
     }
 
     if (defNode != null) {
@@ -68,11 +70,13 @@ class ParserRunner {
   }
 
   Root parseRoot(String input) {
-    return Root(parse(input));
+    return Root(parse(input), 0, input.length);
   }
 
-  List<InlineNode> inlineParse(String input) {
-    return parse(input, inlineOnly: true).map((e) => e as InlineNode).toList();
+  List<InlineNode> inlineParse(String input, {int startIx = 0}) {
+    return parse(input, inlineOnly: true, startIx: startIx)
+        .map((e) => e as InlineNode)
+        .toList();
   }
 }
 
@@ -81,15 +85,15 @@ abstract class Parser {
   /// If the input is unparsable, tryParse returns null. Otherwise, tryParse
   /// returns the Node parsed along with the number of characters to advance
   /// the parser state by.
-  Tuple2<Node, int> tryParse(ParserRunner pr, String input);
+  Node tryParse(ParserRunner pr, String input, int startIx);
 }
 
 abstract class InlineParser extends Parser {
-  Tuple2<InlineNode, int> tryParse(ParserRunner pr, String input);
+  InlineNode tryParse(ParserRunner pr, String input, int startIx);
 }
 
 class HeadingParser extends Parser {
-  Tuple2<Node, int> tryParse(ParserRunner pr, String input) {
+  Node tryParse(ParserRunner pr, String input, int startIx) {
     RegExp exp = RegExp(r"^(\*+) (.*)$", multiLine: true);
     RegExpMatch m = exp.matchAsPrefix(input);
 
@@ -107,9 +111,10 @@ class HeadingParser extends Parser {
           input.substring(m.end, nexm == null ? null : m.end + nexm.start);
       List<Node> text = pr.parse(body);
 
-      Heading node = Heading(level, title, text);
+      Heading node = Heading(level, title, text, startIx,
+          startIx + m.group(0).length + body.length);
 
-      return Tuple2(node, m.group(0).length + body.length);
+      return node;
     } else {
       return null;
     }
@@ -117,7 +122,7 @@ class HeadingParser extends Parser {
 }
 
 class IBSParser extends Parser {
-  Tuple2<Node, int> tryParse(ParserRunner pr, String input) {
+  Node tryParse(ParserRunner pr, String input, int startIx) {
     RegExp exp = RegExp(r"^#\+(.*): (.+)$", multiLine: true);
     RegExpMatch m = exp.matchAsPrefix(input);
 
@@ -126,9 +131,10 @@ class IBSParser extends Parser {
       String prop = m.group(1);
       String val = m.group(2);
 
-      InBufferSetting node = InBufferSetting(prop, val);
+      InBufferSetting node =
+          InBufferSetting(prop, val, startIx, startIx + m.group(0).length);
 
-      return Tuple2(node, m.group(0).length);
+      return node;
     } else {
       return null;
     }
@@ -136,7 +142,7 @@ class IBSParser extends Parser {
 }
 
 class LinkParser extends InlineParser {
-  Tuple2<InlineNode, int> tryParse(ParserRunner pr, String input) {
+  InlineNode tryParse(ParserRunner pr, String input, int startIx) {
     RegExp exp = RegExp(r"\[(?:\[(.*)\])?\[(.*)\]\]");
     RegExpMatch m = exp.matchAsPrefix(input);
 
@@ -146,9 +152,9 @@ class LinkParser extends InlineParser {
       List<InlineNode> text =
           m.group(1) == null ? null : pr.inlineParse(m.group(2));
 
-      Link node = Link(href, text);
+      Link node = Link(href, startIx, startIx + m.group(0).length, text: text);
 
-      return Tuple2(node, m.group(0).length);
+      return node;
     } else {
       return null;
     }
@@ -156,15 +162,16 @@ class LinkParser extends InlineParser {
 }
 
 class VerbatimParser extends InlineParser {
-  Tuple2<InlineNode, int> tryParse(ParserRunner pr, String input) {
+  InlineNode tryParse(ParserRunner pr, String input, int startIx) {
     RegExp exp = RegExp(r"=(?=[^\s])(.*?)(?<=[^\s])=");
     RegExpMatch m = exp.matchAsPrefix(input);
 
     if (m != null) {
       // We match!
-      Verbatim node = Verbatim(m.group(1));
+      Verbatim node =
+          Verbatim(m.group(1), startIx, startIx + m.group(0).length);
 
-      return Tuple2(node, m.group(0).length);
+      return node;
     } else {
       return null;
     }

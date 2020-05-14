@@ -11,11 +11,17 @@ class SparseNote extends StatelessWidget {
   final Function onTap;
   final NoteProvider db;
 
+  final int maxLines;
+
+  final Color color;
+
   SparseNote(
       {Key key,
       @required this.note,
       @required this.titleKey,
       @required this.db,
+      this.color,
+      this.maxLines = 3,
       this.onTap})
       : super(key: key);
 
@@ -44,6 +50,7 @@ class SparseNote extends StatelessWidget {
               child: InkWell(
                 onTap: action,
                 child: Container(
+                  color: this.color,
                   padding:
                       EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
                   child: Column(
@@ -116,7 +123,7 @@ class SparseNote extends StatelessWidget {
                       ),
                       SizedBox(height: 6.0),
                       Text(note.summary,
-                          maxLines: 3, overflow: TextOverflow.ellipsis),
+                          maxLines: this.maxLines, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
