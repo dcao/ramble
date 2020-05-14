@@ -1,6 +1,7 @@
 import 'package:expandable/expandable.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart';
 import 'package:ramble/components/constantly_notched_rectangle.dart';
 import 'package:ramble/components/docked_fab_position.dart';
 import 'package:ramble/components/org_text_controller.dart';
@@ -16,63 +17,82 @@ class BacklinksChip extends StatelessWidget {
 
   BacklinksChip(this.backlinks, this.db) : super();
 
-  // TODO: on sparse note tap
+  _onSparseNoteTap(
+      SparseNote sp, Tuple2<Map<String, String>, String> res) async {
+    // If the whole res is null, we cancelled.
+    // If the first element in the tuple is null, we backed out
+    // before the future was finished.
+    if (res != null && res.item1 != null) {
+      // await Future.delayed(Duration(milliseconds: 500));
+      PrefsHelper helper = await PrefsHelper().init();
+      await Note.saveContents(
+        res.item1,
+        res.item2,
+        filename: join(helper.getNotesFolder(), sp.note.filename),
+      );
+
+      // TODO: More stuff?
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     if (backlinks.length > 0) {
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16.0),
-      ),
-      color: Colors.blueGrey[500],
-      margin: EdgeInsets.zero,
-      elevation: 10,
-      clipBehavior: Clip.antiAlias,
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        ExpandablePanel(
-          theme: const ExpandableThemeData(
-            headerAlignment: ExpandablePanelHeaderAlignment.center,
-            tapBodyToExpand: true,
-            tapBodyToCollapse: true,
-            hasIcon: true,
-          ),
-          expanded: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: backlinks
-                .asMap()
-                .entries
-                .map((e) => SparseNote(
-                    note: e.value,
-                    titleKey: e.key,
-                    color: Colors.blueGrey[50],
-                    onTap: (_a, _b) {},
-                    db: db,
-                    maxLines: 2) as Widget) 
-                .toList()
-                ..add(SizedBox(height: 4)),
-          ),
-          header: Container(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      backlinks.length == 1 ? "1 backlink" : "${backlinks.length} backlinks",
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyText2
-                          .copyWith(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+      return Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0),
+        ),
+        color: Colors.blueGrey[500],
+        margin: EdgeInsets.only(bottom: 12.0),
+        elevation: 10,
+        clipBehavior: Clip.antiAlias,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ExpandablePanel(
+            theme: const ExpandableThemeData(
+              headerAlignment: ExpandablePanelHeaderAlignment.center,
+              tapBodyToExpand: true,
+              tapBodyToCollapse: true,
+              hasIcon: true,
+            ),
+            expanded: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: backlinks
+                  .asMap()
+                  .entries
+                  .map((e) => SparseNote(
+                      note: e.value,
+                      titleKey: e.key,
+                      color: Colors.blueGrey[50],
+                      onTap: _onSparseNoteTap,
+                      db: db,
+                      maxLines: 2) as Widget)
+                  .toList()
+                    ..add(SizedBox(height: 4)),
+            ),
+            header: Container(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        backlinks.length == 1
+                            ? "1 backlink"
+                            : "${backlinks.length} backlinks",
+                        style: Theme.of(context).textTheme.bodyText2.copyWith(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ]),
-    );
+        ]),
+      );
     } else {
       return Container();
     }
@@ -306,7 +326,7 @@ class _NotePageState extends State<NotePage>
                                 child: snapshot.hasData
                                     ? BacklinksChip(snapshot.data, widget.db)
                                     : Container()),
-                            SizedBox(height: 24.0),
+                            SizedBox(height: 12.0),
                             FadeTransition(
                               opacity: _tfOpacityAnim,
                               child: TextFormField(
