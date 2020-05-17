@@ -100,7 +100,8 @@ class HeadingParser extends Parser {
     if (m != null) {
       // We match!
       int level = m.group(1).length;
-      List<InlineNode> title = pr.inlineParse(m.group(2));
+      List<InlineNode> title =
+          pr.inlineParse(m.group(2), startIx: startIx + level + 1);
 
       // We then find the next heading with at the same or less level:
       RegExpMatch nexm =
@@ -109,7 +110,7 @@ class HeadingParser extends Parser {
 
       String body =
           input.substring(m.end, nexm == null ? null : m.end + nexm.start);
-      List<Node> text = pr.parse(body);
+      List<Node> text = pr.parse(body, startIx: startIx + m.group(0).length);
 
       Heading node = Heading(level, title, text, startIx,
           startIx + m.group(0).length + body.length);
@@ -149,8 +150,9 @@ class LinkParser extends InlineParser {
     if (m != null) {
       // We match!
       String href = m.group(1) == null ? m.group(2) : m.group(1);
-      List<InlineNode> text =
-          m.group(1) == null ? null : pr.inlineParse(m.group(2));
+      List<InlineNode> text = m.group(1) == null
+          ? null
+          : pr.inlineParse(m.group(2), startIx: startIx + href.length + 4);
 
       Link node = Link(href, startIx, startIx + m.group(0).length, text: text);
 

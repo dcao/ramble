@@ -217,8 +217,8 @@ create table $tableLink (
   }
 
   Future<List<Note>> openAndSync(String path) async {
-    await open(
-        p.join((await getApplicationSupportDirectory()).path, "asdasddadad.db"));
+    await open(p.join(
+        (await getApplicationSupportDirectory()).path, "asdasddadad.db"));
     return sync(path);
   }
 
@@ -328,8 +328,9 @@ create table $tableLink (
   }
 
   Future<int> addLink(int from, int to, String ctx) async {
-    return await db
-        .insert(tableLink, {columnFrom: from, columnTo: to, columnCtx: ctx});
+    return await db.insert(
+        tableLink, {columnFrom: from, columnTo: to, columnCtx: ctx},
+        conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<Note>> findBacklinks(int to) async {
